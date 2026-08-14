@@ -1,0 +1,29 @@
+# Better Harness reports (regeneratable)
+.qoder/better-harness-runs/
+
+# CodeGraph binary index
+**/.codegraph/codegraph.db
+**/.codegraph/codegraph.db-shm
+**/.codegraph/codegraph.db-wal
+
+# Android build artifacts
+**/android/build/
+**/android/.gradle/
+**/android/.kotlin/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+
+# Flutter
+**/.dart_tool/
+**/build/
+**/.flutter-plugins-dependencies
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~

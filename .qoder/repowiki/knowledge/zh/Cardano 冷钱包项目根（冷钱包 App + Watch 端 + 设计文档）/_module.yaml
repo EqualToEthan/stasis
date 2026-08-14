@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: ""
+title: Cardano 冷钱包项目根（冷钱包 App + Watch 端 + 设计文档）
+scope:
+    - cold-wallet-plugin.md
+    - docs/
+source_files: []
+depends_on: []
+related_to: []

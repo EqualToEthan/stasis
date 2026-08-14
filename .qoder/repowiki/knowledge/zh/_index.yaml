@@ -1,0 +1,39 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: Q0DeR-MaG1C-BrAnCh-Fo2-NoN-GiT-Or-No-C0MmIt
+nodes_managed: true
+exported_at: "2026-08-14T03:59:35Z"
+modules:
+    "":
+        dir_name: Cardano 冷钱包项目根（冷钱包 App + Watch 端 + 设计文档）
+        title: Cardano 冷钱包项目根（冷钱包 App + Watch 端 + 设计文档）
+        scope:
+            - cold-wallet-plugin.md
+            - docs/
+        source_files: []
+        children:
+            - coldwallet_app
+            - coldwallet_watch
+        depends_on: []
+        related_to: []
+    coldwallet_app:
+        dir_name: Cardano 冷钱包 Flutter 应用
+        title: Cardano 冷钱包 Flutter 应用
+        scope:
+            - coldwallet-app/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: coldwallet_watch
+    coldwallet_watch:
+        dir_name: Cold Wallet Watch（Cardano 冷钱包联网观察端）
+        title: Cold Wallet Watch（Cardano 冷钱包联网观察端）
+        scope:
+            - coldwallet-watch/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: coldwallet_app
