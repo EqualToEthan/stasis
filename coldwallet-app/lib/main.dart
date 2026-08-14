@@ -1,7 +1,7 @@
-/// Cardano 冷钱包 App 入口
-///
-/// 完全离线的冷钱包应用，用于助记词管理、离线签名和交易导出。
-/// 通过二维码或文件与联网端（观察钱包）交互。
+// Cardano cold wallet app entry point
+//
+// Fully offline app for mnemonic management, offline signing, and transaction export.
+// Exchanges data with the watch wallet via QR codes or files.
 import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
