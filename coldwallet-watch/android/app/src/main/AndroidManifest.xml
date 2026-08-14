@@ -7,7 +7,7 @@
         android:maxSdkVersion="28" />
 
     <application
-        android:label="Cold Wallet Watch"
+        android:label="Stasis Link"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

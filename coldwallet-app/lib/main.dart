@@ -1,7 +1,8 @@
-// Cardano cold wallet app entry point
+// 多链冷钱包 App 入口
 //
-// Fully offline app for mnemonic management, offline signing, and transaction export.
-// Exchanges data with the watch wallet via QR codes or files.
+// 完全离线的冷钱包应用，支持 Cardano 和 EVM 兼容链。
+// 用于助记词管理、多链地址派生、离线签名和交易导出。
+// 通过二维码或文件与联网端（观察钱包）交互。
 import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
@@ -23,7 +24,7 @@ class ColdWalletApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Cardano Cold Wallet',
+      title: 'Stasis',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
