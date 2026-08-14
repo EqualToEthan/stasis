@@ -4,7 +4,9 @@ import 'package:bip39_plus/bip39_plus.dart' as bip39;
 import 'package:cardano_dart_types/cardano_dart_types.dart';
 import 'package:cardano_flutter_sdk/cardano_flutter_sdk.dart';
 
+import '../models/chain_config.dart';
 import '../models/wallet_info.dart';
+import 'chain_registry.dart';
 import 'secure_storage_service.dart';
 
 /// 钱包服务（多钱包版）：助记词、地址派生、密钥管理
@@ -75,6 +77,27 @@ class WalletService {
     final wallet = await createWallet(mnemonic, testnet: testnet);
     final addrKit = await wallet.getPaymentAddressKit(addressIndex: 0);
     return addrKit.address.bech32Encoded;
+  }
+
+  // ─── 多链地址派生 ──────────────────────────────────────────
+
+  /// 派生指定链的地址
+  ///
+  /// 通过 ChainRegistry 获取对应适配器，从同一助记词派生不同链的地址。
+  Future<String> deriveAddressForChain(String mnemonic, ChainConfig config) async {
+    final adapter = ChainRegistry.adapterFor(config.chainFamily);
+    return adapter.deriveAddress(mnemonic, config);
+  }
+
+  /// 获取当前钱包在所有链上的地址
+  ///
+  /// 返回 `Map<chainId, address>`，遍历 ChainRegistry 中所有配置。
+  Future<Map<String, String>> deriveAllAddresses(String mnemonic) async {
+    final result = <String, String>{};
+    for (final config in ChainRegistry.allConfigs()) {
+      result[config.chainId] = await deriveAddressForChain(mnemonic, config);
+    }
+    return result;
   }
 
   // ─── 网络设置（全局） ───────────────────────────────────────
