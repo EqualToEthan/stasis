@@ -1,16 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../models/cold_export.dart';
+import '../models/eth_cold_export.dart';
+import '../services/chain_registry.dart';
 import 'confirm_sign_screen.dart';
 
-/// 交易详情页面
-///
-/// 展示未签名交易的摘要信息（网络、发送方、接收方、金额、手续费），
-/// 用户确认后跳转到 PIN 验证签名页面。
+/// Transaction detail screen with chain-aware rendering.
 class TxDetailScreen extends StatelessWidget {
-  final ColdExport coldExport;
+  final String rawJson;
 
-  const TxDetailScreen({super.key, required this.coldExport});
+  const TxDetailScreen({super.key, required this.rawJson});
 
   String _formatAda(String lovelace) {
     try {
@@ -18,6 +19,16 @@ class TxDetailScreen extends StatelessWidget {
       return '${(value / 1000000).toStringAsFixed(6)} ADA';
     } catch (_) {
       return '$lovelace lovelace';
+    }
+  }
+
+  String _formatWei(String wei) {
+    try {
+      final value = BigInt.parse(wei);
+      final divisor = BigInt.from(10).pow(18);
+      return '${(value.toDouble() / divisor.toDouble()).toStringAsFixed(6)} ETH';
+    } catch (_) {
+      return '$wei wei';
     }
   }
 
@@ -30,62 +41,146 @@ class TxDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final json = jsonDecode(rawJson) as Map<String, dynamic>;
+    final chainId = json['chainId'] as String?;
+
+    if (chainId == null) {
+      final coldExport = ColdExport.fromJson(json);
+      return _buildCardanoDetail(context, coldExport);
+    }
+
+    final config = ChainRegistry.getConfig(chainId);
+    if (config == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('\u9519\u8bef')),
+        body: Center(child: Text('\u4e0d\u652f\u6301\u7684\u94fe: $chainId')),
+      );
+    }
+
+    if (config.chainFamily == 'evm') {
+      final ethExport = EthColdExport.fromJson(json);
+      return _buildEvmDetail(context, ethExport, config.name);
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('交易详情')),
+      appBar: AppBar(title: const Text('\u9519\u8bef')),
+      body: Center(
+        child: Text(
+          '\u4e0d\u652f\u6301\u7684\u94fe\u65cf: ${config.chainFamily}',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardanoDetail(BuildContext context, ColdExport coldExport) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('\u4ea4\u6613\u8be6\u60c5')),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildInfoCard(
-              title: '网络',
+              title: '\u7f51\u7edc',
               value: coldExport.network,
               icon: Icons.network_check,
             ),
             const SizedBox(height: 12),
             _buildInfoCard(
-              title: '发送方',
+              title: '\u53d1\u9001\u65b9',
               value: coldExport.summary.fromAddress,
               icon: Icons.arrow_upward,
             ),
             const SizedBox(height: 12),
             _buildInfoCard(
-              title: '接收方',
+              title: '\u63a5\u6536\u65b9',
               value: coldExport.summary.toAddress,
               icon: Icons.arrow_downward,
             ),
             const SizedBox(height: 12),
             _buildInfoCard(
-              title: '金额',
+              title: '\u91d1\u989d',
               value: coldExport.summary.assets.map(_formatAsset).join('\n'),
               icon: Icons.paid,
             ),
             const SizedBox(height: 12),
             _buildInfoCard(
-              title: '手续费',
+              title: '\u624b\u7eed\u8d39',
               value: _formatAda(coldExport.summary.fee),
               icon: Icons.receipt,
             ),
             const Spacer(),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ConfirmSignScreen(coldExport: coldExport),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.edit),
-              label: const Text('确认并签名'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
-              ),
-            ),
+            _buildConfirmButton(context),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildEvmDetail(
+    BuildContext context,
+    EthColdExport ethExport,
+    String chainName,
+  ) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('\u4ea4\u6613\u8be6\u60c5')),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildInfoCard(title: '\u94fe', value: chainName, icon: Icons.hub),
+            const SizedBox(height: 12),
+            _buildInfoCard(
+              title: '\u53d1\u9001\u65b9',
+              value: ethExport.summary.fromAddress,
+              icon: Icons.arrow_upward,
+            ),
+            const SizedBox(height: 12),
+            _buildInfoCard(
+              title: '\u63a5\u6536\u65b9',
+              value: ethExport.summary.toAddress,
+              icon: Icons.arrow_downward,
+            ),
+            const SizedBox(height: 12),
+            _buildInfoCard(
+              title: '\u91d1\u989d',
+              value: _formatWei(ethExport.summary.value),
+              icon: Icons.paid,
+            ),
+            const SizedBox(height: 12),
+            _buildInfoCard(
+              title: '\u624b\u7eed\u8d39',
+              value: _formatWei(ethExport.summary.fee),
+              icon: Icons.receipt,
+            ),
+            const SizedBox(height: 12),
+            _buildInfoCard(
+              title: 'Nonce',
+              value: ethExport.summary.nonce.toString(),
+              icon: Icons.tag,
+            ),
+            const Spacer(),
+            _buildConfirmButton(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmButton(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ConfirmSignScreen(rawJson: rawJson),
+          ),
+        );
+      },
+      icon: const Icon(Icons.edit),
+      label: const Text('\u786e\u8ba4\u5e76\u7b7e\u540d'),
+      style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
     );
   }
 

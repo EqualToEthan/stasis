@@ -3,13 +3,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../models/cold_export.dart';
 import 'tx_detail_screen.dart';
 
 /// 扫描交易二维码页面
 ///
 /// 使用摄像头扫描联网设备展示的未签名交易二维码，
-/// 解析为 ColdExport 后跳转到交易详情页。
+/// 验证为 JSON 后跳转到交易详情页。
 class ScanTxScreen extends StatefulWidget {
   const ScanTxScreen({super.key});
 
@@ -30,12 +29,11 @@ class _ScanTxScreenState extends State<ScanTxScreen> {
     setState(() => _scanned = true);
 
     try {
-      final json = jsonDecode(rawValue) as Map<String, dynamic>;
-      final coldExport = ColdExport.fromJson(json);
+      jsonDecode(rawValue); // validate JSON
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => TxDetailScreen(coldExport: coldExport),
+          builder: (context) => TxDetailScreen(rawJson: rawValue),
         ),
       );
     } catch (e) {

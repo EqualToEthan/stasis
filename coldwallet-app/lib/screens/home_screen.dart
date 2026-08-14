@@ -3,8 +3,9 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../models/cold_export.dart';
+import '../services/chain_registry.dart';
 import '../models/wallet_info.dart';
 import '../services/wallet_service.dart';
 import 'tx_detail_screen.dart';
@@ -25,7 +26,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<WalletInfo> _wallets = [];
   WalletInfo? _currentWallet;
-  String _network = 'testnet';
   bool _isLoading = true;
 
   @override
@@ -37,12 +37,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadState() async {
     final wallets = await _walletService.getWallets();
     final current = await _walletService.getCurrentWallet();
-    final network = await _walletService.getNetwork();
     if (!mounted) return;
     setState(() {
       _wallets = wallets;
       _currentWallet = current;
-      _network = network;
       _isLoading = false;
     });
   }
@@ -98,48 +96,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _toggleNetwork() async {
-    final newNetwork = _network == 'testnet' ? 'mainnet' : 'testnet';
-    await _walletService.setNetwork(newNetwork);
-    await _loadState();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cardano 冷钱包'),
-        centerTitle: true,
-        actions: [
-          // 网络切换按钮
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton.icon(
-              onPressed: _toggleNetwork,
-              icon: Icon(
-                Icons.network_check,
-                size: 20,
-                color: _network == 'mainnet' ? Colors.green : Colors.orange,
-              ),
-              label: Text(
-                _network == 'mainnet' ? '主网' : '测试网',
-                style: TextStyle(
-                  color: _network == 'mainnet' ? Colors.green : Colors.orange,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Stasis'), centerTitle: true),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildWalletSelector(),
+                  if (_hasWallets) ...[
+                    const SizedBox(height: 16),
+                    _buildMultiChainAddressList(),
+                  ],
                   const SizedBox(height: 24),
                   _buildActionButton(
                     icon: Icons.qr_code_scanner,
@@ -254,12 +226,12 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     try {
-      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
-      final coldExport = ColdExport.fromJson(json);
+      // Validate JSON, then pass raw string
+      jsonDecode(jsonStr);
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => TxDetailScreen(coldExport: coldExport),
+          builder: (context) => TxDetailScreen(rawJson: jsonStr),
         ),
       );
     } catch (e) {
@@ -341,6 +313,80 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<Map<String, String>> _loadAllAddresses() async {
+    final mnemonic = await _walletService.loadCurrentMnemonic();
+    if (mnemonic == null || mnemonic.isEmpty) return {};
+    return _walletService.deriveAllAddresses(mnemonic);
+  }
+
+  String _truncate(String value, {int head = 12, int tail = 12}) {
+    if (value.length <= head + tail + 3) return value;
+    return '${value.substring(0, head)}...${value.substring(value.length - tail)}';
+  }
+
+  void _copyAddress(String address) {
+    Clipboard.setData(ClipboardData(text: address));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('地址已复制')));
+  }
+
+  Widget _buildMultiChainAddressList() {
+    return FutureBuilder<Map<String, String>>(
+      future: _loadAllAddresses(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('地址派生失败: ${snapshot.error}'),
+            ),
+          );
+        }
+
+        final addresses = snapshot.data ?? const <String, String>{};
+        if (addresses.isEmpty) {
+          return const Card(
+            child: Padding(padding: EdgeInsets.all(16), child: Text('暂无地址')),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('多链地址', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            for (final config in ChainRegistry.allConfigs())
+              if (addresses[config.chainId] != null)
+                Card(
+                  child: ListTile(
+                    title: Text(config.name),
+                    subtitle: Text(
+                      _truncate(addresses[config.chainId]!),
+                      style: const TextStyle(fontFamily: 'monospace'),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.copy),
+                      tooltip: '复制地址',
+                      onPressed: () => _copyAddress(addresses[config.chainId]!),
+                    ),
+                  ),
+                ),
+          ],
+        );
+      },
     );
   }
 

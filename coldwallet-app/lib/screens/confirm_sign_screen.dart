@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../models/cold_export.dart';
 import '../services/transaction_service.dart';
 import '../services/wallet_service.dart';
 import 'export_signed_screen.dart';
 
 /// PIN 验证并签名交易页面
 ///
-/// 用户在此输入 PIN，验证通过后调用 [TransactionService] 对 [ColdExport] 签名，
+/// 用户在此输入 PIN，验证通过后调用 [TransactionService] 对原始交易 JSON 签名，
 /// 签名成功后跳转到 [ExportSignedScreen] 展示已签名交易。
 class ConfirmSignScreen extends StatefulWidget {
-  final ColdExport coldExport;
+  final String rawJson;
 
-  const ConfirmSignScreen({super.key, required this.coldExport});
+  const ConfirmSignScreen({super.key, required this.rawJson});
 
   @override
   State<ConfirmSignScreen> createState() => _ConfirmSignScreenState();
@@ -44,13 +43,15 @@ class _ConfirmSignScreenState extends State<ConfirmSignScreen> {
 
     try {
       final transactionService = TransactionService(_walletService);
-      final coldImport = await transactionService.signTransaction(widget.coldExport);
+      final signedResult = await transactionService.signForChain(
+        widget.rawJson,
+      );
 
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => ExportSignedScreen(coldImport: coldImport),
+          builder: (context) => ExportSignedScreen(signedJson: signedResult),
         ),
       );
     } catch (e) {
@@ -62,10 +63,7 @@ class _ConfirmSignScreenState extends State<ConfirmSignScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -78,19 +76,13 @@ class _ConfirmSignScreenState extends State<ConfirmSignScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('确认签名'),
-      ),
+      appBar: AppBar(title: const Text('确认签名')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.lock_outline,
-              size: 64,
-              color: Colors.blueGrey,
-            ),
+            const Icon(Icons.lock_outline, size: 64, color: Colors.blueGrey),
             const SizedBox(height: 24),
             Text(
               '请输入 PIN 以授权签名',
@@ -101,9 +93,9 @@ class _ConfirmSignScreenState extends State<ConfirmSignScreen> {
             Text(
               '此操作将使用本设备保存的私钥对交易进行离线签名',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
             ),
             const SizedBox(height: 32),
             TextField(

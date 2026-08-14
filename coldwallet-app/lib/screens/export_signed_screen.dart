@@ -4,18 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../models/cold_import.dart';
-
 /// 已签名交易导出页面
 ///
 /// 展示签名后的交易哈希、完整 CBOR 二维码，并提供复制功能。
 /// 如果交易数据超过二维码容量，会提示用户改用复制方式传输。
 class ExportSignedScreen extends StatelessWidget {
-  final ColdImport coldImport;
+  final Map<String, dynamic> signedJson;
 
-  const ExportSignedScreen({super.key, required this.coldImport});
+  const ExportSignedScreen({super.key, required this.signedJson});
 
-  String get _payload => jsonEncode(coldImport.toJson());
+  String get _payload => jsonEncode(signedJson);
 
   /// QR 码二进制容量上限（Version 40, 低容错）
   static const int _maxQrBytes = 2953;
@@ -30,7 +28,7 @@ class ExportSignedScreen extends StatelessWidget {
   }
 
   void _copyTxHash(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: coldImport.txHash));
+    Clipboard.setData(ClipboardData(text: signedJson['txHash'] as String));
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('已复制交易哈希')));
@@ -79,7 +77,7 @@ class ExportSignedScreen extends StatelessWidget {
                     Text('交易哈希', style: theme.textTheme.titleSmall),
                     const SizedBox(height: 8),
                     SelectableText(
-                      _truncate(coldImport.txHash),
+                      _truncate(signedJson['txHash'] as String),
                       style: const TextStyle(fontFamily: 'monospace'),
                     ),
                     const SizedBox(height: 8),

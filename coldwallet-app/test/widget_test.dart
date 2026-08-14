@@ -15,6 +15,6 @@ void main() {
     await tester.pumpWidget(const ColdWalletApp());
 
     // Verify that the home screen title is present.
-    expect(find.text('Cardano 冷钱包'), findsOneWidget);
+    expect(find.text('Stasis'), findsOneWidget);
   });
 }

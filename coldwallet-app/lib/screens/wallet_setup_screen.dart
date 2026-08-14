@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/wallet_info.dart';
+import '../services/chain_registry.dart';
 import '../services/wallet_service.dart';
 import 'dice_entropy_screen.dart';
 
@@ -21,13 +22,12 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
   final TextEditingController _mnemonicController = TextEditingController();
 
   List<WalletInfo> _wallets = [];
-  String _network = 'testnet';
   bool _isLoading = true;
   bool _hasPin = false;
 
   // 当前正在查看详情的钱包
   String? _expandedWalletId;
-  String? _expandedAddress;
+  Map<String, String>? _expandedAddresses;
   String? _expandedMnemonic;
 
   @override
@@ -38,16 +38,14 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
 
   Future<void> _loadState() async {
     final wallets = await _walletService.getWallets();
-    final network = await _walletService.getNetwork();
     final hasPin = await _walletService.hasPin();
     if (!mounted) return;
     setState(() {
       _wallets = wallets;
-      _network = network;
       _hasPin = hasPin;
       _isLoading = false;
       _expandedWalletId = null;
-      _expandedAddress = null;
+      _expandedAddresses = null;
       _expandedMnemonic = null;
     });
   }
@@ -56,7 +54,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     if (_expandedWalletId == wallet.id) {
       setState(() {
         _expandedWalletId = null;
-        _expandedAddress = null;
+        _expandedAddresses = null;
         _expandedMnemonic = null;
       });
       return;
@@ -65,10 +63,10 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     final prevWallet = await _walletService.getCurrentWallet();
     await _walletService.switchWallet(wallet.id);
     final m = await _walletService.loadCurrentMnemonic();
-    final isTestnet = _network != 'mainnet';
-    final address = m != null
-        ? await _walletService.deriveAddress(m, testnet: isTestnet)
-        : null;
+    Map<String, String> allAddresses = {};
+    if (m != null) {
+      allAddresses = await _walletService.deriveAllAddresses(m);
+    }
     // 恢复之前选中的钱包
     if (prevWallet != null) {
       await _walletService.switchWallet(prevWallet.id);
@@ -76,7 +74,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     if (!mounted) return;
     setState(() {
       _expandedWalletId = wallet.id;
-      _expandedAddress = address;
+      _expandedAddresses = allAddresses;
       _expandedMnemonic = m;
     });
   }
@@ -382,6 +380,11 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     );
   }
 
+  String _truncate(String value, {int head = 12, int tail = 12}) {
+    if (value.length <= head + tail + 3) return value;
+    return '${value.substring(0, head)}...${value.substring(value.length - tail)}';
+  }
+
   void _copyText(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(
@@ -516,25 +519,39 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
             ),
             onTap: () => _expandWallet(wallet),
           ),
-          if (isExpanded && _expandedAddress != null) ...[
+          if (isExpanded && _expandedAddresses != null) ...[
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('地址', style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 4),
-                  Text(
-                    _expandedAddress!,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text('多链地址', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: () => _copyText(_expandedAddress!, '地址'),
-                    icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('复制地址'),
-                  ),
+                  for (final config in ChainRegistry.allConfigs())
+                    if (_expandedAddresses![config.chainId] != null)
+                      Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          title: Text(config.name),
+                          subtitle: Text(
+                            _truncate(_expandedAddresses![config.chainId]!),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(fontFamily: 'monospace'),
+                          ),
+                          trailing: IconButton(
+                            onPressed: () => _copyText(
+                              _expandedAddresses![config.chainId]!,
+                              '${config.name} 地址',
+                            ),
+                            icon: const Icon(Icons.copy, size: 16),
+                            tooltip: '复制地址',
+                          ),
+                        ),
+                      ),
                   const Divider(height: 24),
                   Text(
                     '助记词',
