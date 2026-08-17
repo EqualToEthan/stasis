@@ -1,38 +1,43 @@
-# Cardano 冷钱包项目
+# 多链冷钱包项目
 
 ## 项目概述
 
-Cardano 冷钱包系统，包含两个 Flutter 应用：
+多链冷钱包系统，支持 Cardano、EVM（Ethereum/BSC/Arbitrum/Polygon/Base）等链族，包含两个 Flutter 应用：
 
-- **coldwallet-app**：离线冷钱包，负责助记词管理、CIP-1852 地址派生、二维码扫码签名与交易文件导入导出
-- **coldwallet-watch**：联网观察钱包，用于查看余额、构建未签名交易，并通过扫码/文件导入导出已签名交易
+| 子项目 | 说明 | 文档入口 |
+|--------|------|----------|
+| **coldwallet-app** | 离线冷钱包 — 助记词管理、多链地址派生、扫码签名、交易文件导入导出 | [coldwallet-app/lib/README.md](coldwallet-app/lib/README.md) |
+| **coldwallet-watch** | 联网观察钱包 — 查看余额、构建未签名交易、扫码/文件导入导出已签名交易 | [coldwallet-watch/lib/README.md](coldwallet-watch/lib/README.md) |
 
-两端通过 JSON 格式交换数据（`ColdExport` / `ColdImport`），传输方式支持二维码和文件导出/导入。详见 [PROTOCOL.md](PROTOCOL.md)。
+两端通过 JSON 格式交换数据（Cardano: `ColdExport`/`ColdImport`，EVM: `EthColdExport`/`EthColdImport`），传输方式支持二维码和文件导出/导入。详见 [PROTOCOL.md](PROTOCOL.md)。
 
 ## 网络配置
 
-网络固定为 **Cardano preview testnet**，不允许网络切换 UI 或逻辑。
+各链固定为对应测试网，不允许网络切换 UI 或逻辑：
+- Cardano: preview testnet
+- EVM: Sepolia / BSC Testnet / Arbitrum Sepolia / Polygon Amoy / Base Sepolia
 
 ## 项目结构
 
 ```
 coldwallet/
-├── coldwallet-app/          # 离线冷钱包 Flutter 应用
+├── coldwallet-app/          # 离线冷钱包 Flutter 应用（多链）
 │   ├── lib/
-│   │   ├── models/          # 数据模型（wallet_info, cold_export, cold_import）
-│   │   ├── screens/         # UI 页面（wallet_setup, home, confirm_sign, scan_tx 等）
-│   │   ├── services/        # 业务服务（wallet, transaction, secure_storage）
-│   │   └── widgets/         # 可复用组件
-│   └── test/                # 测试
+│   │   ├── models/          # 数据模型（chain_config, cold_export, eth_cold_export 等）
+│   │   ├── screens/         # UI 页面（home, wallet_setup, confirm_sign 等）
+│   │   ├── services/        # 业务服务（wallet, transaction, chain_registry）
+│   │   │   └── adapters/    # 链适配器（chain_adapter, cardano_adapter, evm_adapter）
+│   │   └── README.md        # 模块文档索引
+│   └── test/
 ├── coldwallet-watch/        # 联网观察钱包 Flutter 应用
 │   ├── lib/
-│   │   ├── models/          # 数据模型（watch_wallet, asset_balance, cold_export, cold_import）
-│   │   ├── screens/         # UI 页面（home, add_wallet, send, receive, export_tx 等）
+│   │   ├── models/          # 数据模型（watch_wallet, asset_balance 等）
+│   │   ├── screens/         # UI 页面（home, add_wallet, send, receive 等）
 │   │   ├── services/        # 业务服务（blockfrost, wallet, asset）
-│   │   └── widgets/         # 可复用组件
-│   └── test/                # 测试
+│   │   ├── widgets/         # 可复用组件
+│   │   └── README.md        # 模块文档索引
+│   └── test/
 ├── docs/superpowers/        # 设计文档和开发计划
-├── .agents/skills/          # Cardano 开发相关 Skill
 └── PROTOCOL.md              # 冷热钱包通信协议定义
 ```
 
@@ -70,6 +75,7 @@ Flutter SDK: ^3.11.1，Dart SDK: ^3.11.1。
 
 - HomeScreen 仅显示 **Send** 和 **Receive** 按钮，Buy 和 Exchange 为占位功能，不实现
 - 冷钱包完全离线，不依赖网络相关插件（如 share_plus）
-- 地址派生遵循 CIP-1852 硬化路径格式
+- Cardano 地址派生遵循 CIP-1852 硬化路径格式，EVM 遵循 BIP-44 m/44'/60'/0'/0/0
+- 多链通过 ChainAdapter 适配器模式扩展，新增链族只需新建适配器 + 注册 ChainConfig
 - 代码结构分析必须使用 codegraph MCP（见 `.qoder/rules/codegraph.md`）
-- 每个源码目录需维护 README.md（模块文档）
+- 每个源码目录需维护 README.md（模块文档），各子项目 `lib/README.md` 为文档索引入口
