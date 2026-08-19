@@ -1,7 +1,10 @@
+import 'certificate.dart';
+
 /// 插件端导出给离线设备的数据（未签名交易）
 ///
 /// 包含交易 CBOR、网络标识和摘要信息，
 /// 通过二维码或文件传递给冷钱包进行离线签名。
+/// 质押交易额外包含 [certificates]、[withdrawals]、[stakeKeyPath]。
 class ColdExport {
   final int version;
   final String type;
@@ -9,12 +12,24 @@ class ColdExport {
   final String txCbor;
   final TxSummary summary;
 
+  /// 质押证书列表（payment 交易时为 null）
+  final List<Certificate>? certificates;
+
+  /// 奖励提取：reward_address → lovelace 数量（payment 交易时为 null）
+  final Map<String, int>? withdrawals;
+
+  /// Stake key 派生路径（如 m/1852'/1815'/0'/2/0，payment 交易时为 null）
+  final String? stakeKeyPath;
+
   const ColdExport({
     required this.version,
     required this.type,
     required this.network,
     required this.txCbor,
     required this.summary,
+    this.certificates,
+    this.withdrawals,
+    this.stakeKeyPath,
   });
 
   factory ColdExport.fromJson(Map<String, dynamic> json) {
@@ -24,6 +39,12 @@ class ColdExport {
       network: json['network'] as String,
       txCbor: json['txCbor'] as String,
       summary: TxSummary.fromJson(json['summary'] as Map<String, dynamic>),
+      certificates: (json['certificates'] as List<dynamic>?)
+          ?.map((e) => Certificate.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      withdrawals: (json['withdrawals'] as Map<String, dynamic>?)
+          ?.map((k, v) => MapEntry(k, v as int)),
+      stakeKeyPath: json['stakeKeyPath'] as String?,
     );
   }
 
@@ -34,6 +55,10 @@ class ColdExport {
       'network': network,
       'txCbor': txCbor,
       'summary': summary.toJson(),
+      if (certificates != null)
+        'certificates': certificates!.map((c) => c.toJson()).toList(),
+      if (withdrawals != null) 'withdrawals': withdrawals,
+      if (stakeKeyPath != null) 'stakeKeyPath': stakeKeyPath,
     };
   }
 }
