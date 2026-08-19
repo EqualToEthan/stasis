@@ -79,6 +79,15 @@ class WalletService {
     return addrKit.address.bech32Encoded;
   }
 
+  /// 派生 stake address
+  ///
+  /// 使用 CIP-1852 路径 m/1852'/1815'/0'/2/0 派生。
+  /// testnet 前缀为 stake_test，mainnet 前缀为 stake1。
+  Future<String> deriveStakeAddress(String mnemonic, {bool testnet = true}) async {
+    final wallet = await createWallet(mnemonic, testnet: testnet);
+    return wallet.stakeAddress.bech32Encoded;
+  }
+
   // ─── 多链地址派生 ──────────────────────────────────────────
 
   /// 派生指定链的地址
