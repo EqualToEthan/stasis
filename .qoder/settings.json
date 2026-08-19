@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|SearchReplace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .qoder/hooks/post-edit-validate.mjs",
+            "timeout": 90,
+            "async": true,
+            "statusMessage": "Running flutter analyze..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .qoder/hooks/check-docs-update.mjs",
+            "timeout": 15,
+            "statusMessage": "Checking documentation..."
+          }
+        ]
+      }
+    ]
+  }
+}
