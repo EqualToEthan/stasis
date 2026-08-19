@@ -6,6 +6,7 @@ import 'package:cardano_flutter_sdk/cardano_flutter_sdk.dart';
 import 'package:hex/hex.dart';
 import 'package:pointycastle/export.dart';
 
+import '../../models/certificate.dart';
 import '../../models/chain_config.dart';
 import '../../models/cold_export.dart';
 import '../../models/sign_result.dart';
@@ -51,18 +52,83 @@ class CardanoAdapter implements ChainAdapter {
     );
 
     final tx = CardanoTransaction.deserializeFromHex(export.txCbor);
-    final witnessSet = await wallet.signTransaction(
-      tx: tx,
-      witnessBech32Addresses: {export.summary.fromAddress},
-    );
-    final signedTx = tx.copyWithAdditionalSignatures(witnessSet);
 
+    final WitnessSet witnessSet;
+    if (export.certificates != null || export.withdrawals != null) {
+      // 质押交易：构建 TxSigningBundle 让 SDK 自动添加 stake key witness
+      witnessSet = await _signStakingTransaction(wallet, tx, export);
+    } else {
+      // 普通支付交易：仅 payment key 签名
+      witnessSet = await wallet.signTransaction(
+        tx: tx,
+        witnessBech32Addresses: {export.summary.fromAddress},
+      );
+    }
+
+    final signedTx = tx.copyWithAdditionalSignatures(witnessSet);
     final txHash = _blake2b256(HEX.decode(export.txCbor));
 
     return SignResult(
       signedTxHex: signedTx.serializeHexString(),
       txHash: HEX.encode(txHash),
     );
+  }
+
+  /// 质押交易签名：构建 TxSigningBundle，SDK 自动检测证书/提款并添加 stake key witness
+  Future<WitnessSet> _signStakingTransaction(
+    CardanoWallet wallet,
+    CardanoTransaction tx,
+    ColdExport export,
+  ) async {
+    // 从证书中提取质押字段
+    final delegationPoolId = export.certificates
+        ?.where((c) => c.type == CertificateType.stakeDelegation)
+        .map((c) => c.poolKeyHash)
+        .nonNulls
+        .lastOrNull;
+    final hasDeregistration = export.certificates
+        ?.any((c) => c.type == CertificateType.stakeDeregistration) ??
+        false;
+
+    final bundle = TxSigningBundle(
+      receiveAddressBech32: wallet.firstAddress.bech32Encoded,
+      networkId: wallet.networkId,
+      txsData: [
+        TxPreparedForSigning(
+          tx: tx,
+          txDiff: TxDiff(
+            diff: Value.v0(lovelace: BigInt.zero.toCborInt()),
+            usedUtxos: const [],
+            stakeDelegationPoolId: delegationPoolId,
+            stakeDeregistration: hasDeregistration,
+            dRepDeregistration: false,
+            dRepDelegation: null,
+            dRepRegistration: null,
+            dRepUpdate: null,
+            authorizeConstitutionalCommitteeHot: null,
+            resignConstitutionalCommitteeCold: null,
+            votes: const [],
+            proposals: const [],
+          ),
+          utxosBeforeTx: const [],
+          signingAddressesRequired: {export.summary.fromAddress},
+        ),
+      ],
+      totalDiff: Value.v0(lovelace: BigInt.zero.toCborInt()),
+      stakeDelegationPoolId: delegationPoolId,
+      stakeDeregistration: hasDeregistration,
+      dRepDeregistration: false,
+      dRepDelegation: null,
+      dRepRegistration: null,
+      dRepUpdate: null,
+      authorizeConstitutionalCommitteeHot: null,
+      resignConstitutionalCommitteeCold: null,
+      votes: const [],
+      proposals: const [],
+    );
+
+    final signedBundle = await wallet.signTransactionsBundle(bundle);
+    return signedBundle.txsData[0].nweSignatures;
   }
 
   /// 计算 blake2b_256 哈希
