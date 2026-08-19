@@ -9,7 +9,7 @@
 | secure_storage_service.dart | SecureStorageService | 安全存储，通过 Android Keystore 加密存储助记词、PIN 和钱包列表 |
 | transaction_service.dart | TransactionService | 交易签名，支持 Cardano（CBOR）和 EVM（RLP）多链签名路由 |
 | wallet_service.dart | WalletService | 钱包服务，助记词生成/验证、HD 钱包创建、多链地址派生、多钱包管理和 PIN 管理 |
-| chain_registry.dart | ChainRegistry | 链注册中心，管理所有链配置，提供适配器实例查找 |
+| chain_registry.dart | ChainRegistry | 链注册中心，管理链配置、适配器查找与交易链解析（扫码/导入链联动校验） |
 | adapters/chain_adapter.dart | ChainAdapter | 链适配器抽象接口，定义地址派生、交易解析和签名方法 |
 | adapters/cardano_adapter.dart | CardanoAdapter | Cardano 适配器，CIP-1852 地址派生 + Ed25519 签名 |
 | adapters/evm_adapter.dart | EvmAdapter | EVM 适配器，BIP-44 地址派生 + EIP-155/EIP-1559 签名 |
@@ -58,6 +58,17 @@
 | `setCurrentNetwork(network)` / `getCurrentNetwork()` | — | 全局网络设置 |
 | `savePin(pin)` / `verifyPin(pin)` / `hasPin()` | — | PIN 管理（TODO: 改为哈希存储） |
 | `clearAll()` | `Future<void>` | 清空所有存储数据 |
+
+### ChainRegistry
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `adapterFor(chainFamily)` | `ChainAdapter` | 根据链族获取适配器实例（cardano/evm） |
+| `getConfig(chainId)` | `ChainConfig?` | 根据 chainId 获取链配置 |
+| `allConfigs()` | `List<ChainConfig>` | 获取所有链配置 |
+| `configsForFamily(family)` | `List<ChainConfig>` | 获取指定链族的所有配置 |
+| `resolveChainId(json)` | `String` | 从交易 JSON 解析链 ID，无 chainId 字段视为 Cardano |
+| `mismatchMessage(selectedChainId, scannedChainId)` | `String?` | 链不匹配提示文案，匹配返回 null |
 
 ## 依赖关系
 

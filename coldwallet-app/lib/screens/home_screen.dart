@@ -8,11 +8,12 @@ import 'package:flutter/services.dart';
 import '../services/chain_registry.dart';
 import '../models/wallet_info.dart';
 import '../services/wallet_service.dart';
+import 'scan_tx_screen.dart';
 import 'tx_detail_screen.dart';
 
 /// 冷钱包首页
 ///
-/// 展示钱包选择器、网络切换、扫码签名入口、文件导入入口和钱包管理入口。
+/// 展示钱包选择器、多链地址下拉切换、扫码签名入口、文件导入入口和钱包管理入口。
 /// 无钱包时引导用户创建第一个钱包。
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,12 +29,21 @@ class _HomeScreenState extends State<HomeScreen> {
   WalletInfo? _currentWallet;
   bool _isLoading = true;
 
+  // 多链地址缓存与下拉选中状态
+  Map<String, String> _allAddresses = {};
+  bool _addressesLoading = true;
+  String? _selectedChainId;
+
   @override
   void initState() {
     super.initState();
     _loadState();
   }
 
+  /// 加载钱包列表、当前钱包和多链地址并缓存到状态。
+  ///
+  /// 地址在加载后缓存到 [_allAddresses]，下拉切换链时直接读取缓存，
+  /// 避免每次切换都重新派生地址。切换钱包后若选中的链不可用则回退到第一条。
   Future<void> _loadState() async {
     final wallets = await _walletService.getWallets();
     final current = await _walletService.getCurrentWallet();
@@ -43,6 +53,47 @@ class _HomeScreenState extends State<HomeScreen> {
       _currentWallet = current;
       _isLoading = false;
     });
+
+    // 加载多链地址并缓存到状态，避免下拉切换时重新派生
+    if (current != null) {
+      setState(() => _addressesLoading = true);
+      try {
+        final addresses = await _loadAllAddresses();
+        final available = ChainRegistry.allConfigs()
+            .where((c) => addresses[c.chainId] != null)
+            .toList();
+        if (!mounted) return;
+        setState(() {
+          _allAddresses = addresses;
+          _addressesLoading = false;
+          // 切换钱包后若当前选中链不存在则回退到第一条
+          if (_selectedChainId == null ||
+              !available.any((c) => c.chainId == _selectedChainId)) {
+            _selectedChainId = available.isNotEmpty
+                ? available.first.chainId
+                : null;
+          }
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _allAddresses = {};
+          _addressesLoading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('地址派生失败: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } else {
+      if (!mounted) return;
+      setState(() {
+        _allAddresses = {};
+        _addressesLoading = false;
+        _selectedChainId = null;
+      });
+    }
   }
 
   bool get _hasWallets => _wallets.isNotEmpty;
@@ -117,9 +168,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.qr_code_scanner,
                     label: '扫码签名',
                     description: '扫描联网设备上的未签名交易二维码',
-                    onPressed: _hasWallets
+                    onPressed: _hasWallets && _selectedChainId != null
                         ? () async {
-                            await Navigator.pushNamed(context, '/scan-tx');
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ScanTxScreen(
+                                  requiredChainId: _selectedChainId!,
+                                ),
+                              ),
+                            );
                             if (mounted) _loadState();
                           }
                         : null,
@@ -226,8 +284,27 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     try {
-      // Validate JSON, then pass raw string
-      jsonDecode(jsonStr);
+      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+      // 链联动校验：导入的交易链必须与当前选中链一致
+      if (_selectedChainId == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('当前无可用链，请先创建钱包')));
+        return;
+      }
+      final scannedChainId = ChainRegistry.resolveChainId(json);
+      final mismatch = ChainRegistry.mismatchMessage(
+        _selectedChainId!,
+        scannedChainId,
+      );
+      if (mismatch != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(mismatch)));
+        return;
+      }
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -334,59 +411,81 @@ class _HomeScreenState extends State<HomeScreen> {
     ).showSnackBar(const SnackBar(content: Text('地址已复制')));
   }
 
+  /// 构建多链地址下拉选择器。
+  ///
+  /// 通过 [DropdownButtonFormField] 切换链，下方只显示当前选中链的地址卡片。
+  /// 地址数据来自 [_loadState] 缓存的 [_allAddresses]，切换时无需重新派生。
   Widget _buildMultiChainAddressList() {
-    return FutureBuilder<Map<String, String>>(
-      future: _loadAllAddresses(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+    if (_addressesLoading) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (_allAddresses.isEmpty) {
+      return const Card(
+        child: Padding(padding: EdgeInsets.all(16), child: Text('暂无地址')),
+      );
+    }
+
+    final availableConfigs = ChainRegistry.allConfigs()
+        .where((c) => _allAddresses[c.chainId] != null)
+        .toList();
+
+    if (availableConfigs.isEmpty) {
+      return const Card(
+        child: Padding(padding: EdgeInsets.all(16), child: Text('暂无地址')),
+      );
+    }
+
+    final selectedConfig = availableConfigs.firstWhere(
+      (c) => c.chainId == _selectedChainId,
+      orElse: () => availableConfigs.first,
+    );
+    final selectedAddress = _allAddresses[selectedConfig.chainId]!;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('多链地址', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: selectedConfig.chainId,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          items: availableConfigs.map((config) {
+            return DropdownMenuItem<String>(
+              value: config.chainId,
+              child: Text(config.name),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              setState(() => _selectedChainId = value);
+            }
+          },
+        ),
+        const SizedBox(height: 8),
+        Card(
+          child: ListTile(
+            title: Text(selectedConfig.name),
+            subtitle: Text(
+              _truncate(selectedAddress),
+              style: const TextStyle(fontFamily: 'monospace'),
             ),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('地址派生失败: ${snapshot.error}'),
+            trailing: IconButton(
+              icon: const Icon(Icons.copy),
+              tooltip: '复制地址',
+              onPressed: () => _copyAddress(selectedAddress),
             ),
-          );
-        }
-
-        final addresses = snapshot.data ?? const <String, String>{};
-        if (addresses.isEmpty) {
-          return const Card(
-            child: Padding(padding: EdgeInsets.all(16), child: Text('暂无地址')),
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('多链地址', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            for (final config in ChainRegistry.allConfigs())
-              if (addresses[config.chainId] != null)
-                Card(
-                  child: ListTile(
-                    title: Text(config.name),
-                    subtitle: Text(
-                      _truncate(addresses[config.chainId]!),
-                      style: const TextStyle(fontFamily: 'monospace'),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.copy),
-                      tooltip: '复制地址',
-                      onPressed: () => _copyAddress(addresses[config.chainId]!),
-                    ),
-                  ),
-                ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 

@@ -9,8 +9,8 @@
 | confirm_sign_screen.dart | ConfirmSignScreen | PIN 验证并签名交易，支持 Cardano 和 EVM 多链签名路由 |
 | dice_entropy_screen.dart | DiceEntropyScreen | 骰子熵收集，掷物理骰子 256 次收集真随机熵生成 BIP-39 助记词 |
 | export_signed_screen.dart | ExportSignedScreen | 已签名交易导出，展示交易哈希、二维码，支持复制和文件导出 |
-| home_screen.dart | HomeScreen | 首页，多链地址展示、钱包选择器、扫码签名和文件导入入口 |
-| scan_tx_screen.dart | ScanTxScreen | 扫描交易二维码，扫描未签名交易 JSON 并跳转到详情页 |
+| home_screen.dart | HomeScreen | 首页，多链地址下拉切换、钱包选择器、扫码签名和文件导入入口 |
+| scan_tx_screen.dart | ScanTxScreen | 扫描交易二维码，校验交易链与首页选中链一致后跳转详情页，不匹配则提示并阻止跳转 |
 | tx_detail_screen.dart | TxDetailScreen | 交易详情，根据链类型展示 Cardano 或 EVM 交易摘要 |
 | wallet_setup_screen.dart | WalletSetupScreen | 钱包管理，支持创建/掷骰子/导入钱包，查看多链地址详情、备份助记词和删除 |
 
@@ -35,7 +35,7 @@ HomeScreen（文件导入）→ TxDetailScreen → ConfirmSignScreen → ExportS
 | 我想... | 修改文件 |
 |---------|---------|
 | 修改首页布局或按钮样式 | home_screen.dart — 修改 _buildActionButton 和 build 方法 |
-| 修改多链地址展示逻辑 | home_screen.dart — 修改 _buildMultiChainAddresses 方法 |
+| 修改多链地址展示逻辑 | home_screen.dart — 修改 _buildMultiChainAddressList 方法 |
 | 添加新的钱包创建方式 | wallet_setup_screen.dart — 在 _showAddWalletSheet 中添加选项 |
 | 修改交易详情的显示字段 | tx_detail_screen.dart — 修改 _buildInfoCard 调用 |
 | 添加新链类型的详情展示 | tx_detail_screen.dart — 在 _buildSummary 中添加链类型分支 |

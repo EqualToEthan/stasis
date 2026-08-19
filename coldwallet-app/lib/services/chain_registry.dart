@@ -69,6 +69,31 @@ class ChainRegistry {
   /// 根据 chainId 获取链配置
   static ChainConfig? getConfig(String chainId) => _configs[chainId];
 
+  /// 从交易 JSON 解析链 ID。
+  ///
+  /// 无 `chainId` 字段或值为非 String 时视为 Cardano（`cardano-preview`），
+  /// 向后兼容不含 chainId 字段的 ColdExport。
+  static String resolveChainId(Map<String, dynamic> json) {
+    final v = json['chainId'];
+    if (v is String) return v;
+    return 'cardano-preview';
+  }
+
+  /// 生成"链不匹配"提示文案，匹配时返回 null。
+  ///
+  /// [selectedChainId] 当前选中的链 ID；
+  /// [scannedChainId] 扫码/导入交易解析出的链 ID。
+  /// 链名取不到时回退显示原始 chainId。
+  static String? mismatchMessage(
+    String selectedChainId,
+    String scannedChainId,
+  ) {
+    if (scannedChainId == selectedChainId) return null;
+    final selected = getConfig(selectedChainId)?.name ?? selectedChainId;
+    final scanned = getConfig(scannedChainId)?.name ?? scannedChainId;
+    return '当前选中 $selected，扫到的交易属于 $scanned，请切换链后重试';
+  }
+
   /// 获取所有链配置
   static List<ChainConfig> allConfigs() => _configs.values.toList();
 

@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/wallet_setup_screen.dart';
-import 'screens/scan_tx_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,7 +43,6 @@ class ColdWalletApp extends StatelessWidget {
       routes: {
         '/': (context) => const HomeScreen(),
         '/wallet-setup': (context) => const WalletSetupScreen(),
-        '/scan-tx': (context) => const ScanTxScreen(),
       },
     );
   }
