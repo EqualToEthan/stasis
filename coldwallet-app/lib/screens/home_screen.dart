@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../services/chain_registry.dart';
 import '../models/wallet_info.dart';
@@ -33,6 +34,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, String> _allAddresses = {};
   bool _addressesLoading = true;
   String? _selectedChainId;
+
+  // Cardano stake address（仅当选中 Cardano 链时加载）
+  String? _stakeAddress;
 
   @override
   void initState() {
@@ -74,6 +78,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 : null;
           }
         });
+        // Cardano 链选中时加载 stake address
+        await _loadStakeAddressIfNeeded();
       } catch (e) {
         if (!mounted) return;
         setState(() {
@@ -97,6 +103,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool get _hasWallets => _wallets.isNotEmpty;
+
+  /// 当前选中的链是否为 Cardano
+  bool get _isCardanoSelected {
+    if (_selectedChainId == null) return false;
+    final config = ChainRegistry.allConfigs()
+        .where((c) => c.chainId == _selectedChainId)
+        .firstOrNull;
+    return config?.chainFamily == 'cardano';
+  }
+
+  /// 当选中的链为 Cardano 时，派生并缓存 stake address
+  Future<void> _loadStakeAddressIfNeeded() async {
+    if (!_isCardanoSelected) {
+      if (mounted) setState(() => _stakeAddress = null);
+      return;
+    }
+    try {
+      final mnemonic = await _walletService.loadCurrentMnemonic();
+      if (mnemonic == null || !mounted) return;
+      final addr = await _walletService.deriveStakeAddress(mnemonic);
+      if (mounted) setState(() => _stakeAddress = addr);
+    } catch (_) {
+      if (mounted) setState(() => _stakeAddress = null);
+    }
+  }
 
   void _showWalletPicker() {
     showModalBottomSheet(
@@ -467,6 +498,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onChanged: (value) {
             if (value != null) {
               setState(() => _selectedChainId = value);
+              _loadStakeAddressIfNeeded();
             }
           },
         ),
@@ -485,6 +517,31 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+        // Cardano 链选中时显示 stake address 和合并 QR 按钮
+        if (_isCardanoSelected && _stakeAddress != null) ...[
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.key, size: 20),
+              title: const Text('Stake Address'),
+              subtitle: Text(
+                _truncate(_stakeAddress!),
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.copy),
+                tooltip: '复制 stake address',
+                onPressed: () => _copyAddress(_stakeAddress!),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showCombinedQrDialog(selectedAddress, _stakeAddress!),
+            icon: const Icon(Icons.qr_code_2),
+            label: const Text('显示地址二维码（供观察钱包扫码导入）'),
+          ),
+        ],
       ],
     );
   }
@@ -515,6 +572,44 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const Icon(Icons.chevron_right),
+        ],
+      ),
+    );
+  }
+
+  /// 显示合并地址二维码：包含 payment address + stake address
+  ///
+  /// 观察钱包扫码后可一次性导入两个地址。
+  void _showCombinedQrDialog(String paymentAddress, String stakeAddress) {
+    final combinedJson = jsonEncode({
+      'paymentAddress': paymentAddress,
+      'stakeAddress': stakeAddress,
+    });
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('地址二维码'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            QrImageView(
+              data: combinedJson,
+              version: QrVersions.auto,
+              size: 240,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '观察钱包扫描此二维码导入地址',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
+          ),
         ],
       ),
     );
