@@ -105,4 +105,60 @@ class BlockfrostService {
     }
     return jsonDecode(response.body) as String;
   }
+
+  // ─── 质押相关查询 ───────────────────────────────────
+
+  /// 查询 stake pool 信息
+  ///
+  /// [poolId] Bech32 格式的 pool ID（如 pool1abc...）
+  /// 返回包含 pool 详细信息的 JSON（pledge、margin、retiring 等）
+  Future<Map<String, dynamic>> getPoolInfo(String poolId) async {
+    final url = Uri.parse('$_baseUrl/pools/$poolId');
+    final response = await _client.get(url, headers: _headers);
+    if (response.statusCode == 404) {
+      throw Exception('Pool not found: $poolId');
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Blockfrost error: ${response.statusCode} ${response.body}',
+      );
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// 检查 stake pool 是否已退役
+  ///
+  /// 返回 true 表示 pool 正在或已经退役（retiring epoch 不为 null）。
+  Future<bool> isPoolRetired(String poolId) async {
+    final info = await getPoolInfo(poolId);
+    return info['retiring'] != null;
+  }
+
+  /// 查询 stake account 信息
+  ///
+  /// [stakeAddress] Bech32 格式的 stake address
+  /// 返回 JSON 包含：
+  /// - `active` (bool): stake key 是否已注册
+  /// - `pool_id` (String?): 当前委托的 pool
+  /// - `withdrawable_amount` (String): 可提取的奖励 lovelace
+  /// - `controlled_amount` (String): 控制的总 ADA lovelace
+  Future<Map<String, dynamic>> getStakeAccountInfo(String stakeAddress) async {
+    final url = Uri.parse('$_baseUrl/accounts/$stakeAddress');
+    final response = await _client.get(url, headers: _headers);
+    if (response.statusCode == 404) {
+      // stake key 未注册，返回默认未激活状态
+      return {
+        'active': false,
+        'pool_id': null,
+        'withdrawable_amount': '0',
+        'controlled_amount': '0',
+      };
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Blockfrost error: ${response.statusCode} ${response.body}',
+      );
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
 }
