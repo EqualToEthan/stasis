@@ -38,12 +38,14 @@ class WalletService {
   Future<WatchWallet> addWallet({
     required String name,
     required String address,
+    String? stakeAddress,
     required String network,
   }) async {
     final wallets = await getWallets();
     final wallet = WatchWallet.create(
       name: name,
       address: address,
+      stakeAddress: stakeAddress,
       network: network,
     );
     wallets.add(wallet);

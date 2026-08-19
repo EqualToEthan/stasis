@@ -8,6 +8,10 @@ class WatchWallet {
   final String id;
   final String name;
   final String address;
+
+  /// Cardano stake address（可选，质押功能需要）
+  final String? stakeAddress;
+
   final String network;
   final DateTime createdAt;
 
@@ -15,6 +19,7 @@ class WatchWallet {
     required this.id,
     required this.name,
     required this.address,
+    this.stakeAddress,
     required this.network,
     required this.createdAt,
   });
@@ -23,6 +28,7 @@ class WatchWallet {
   factory WatchWallet.create({
     required String name,
     required String address,
+    String? stakeAddress,
     required String network,
   }) {
     final now = DateTime.now();
@@ -32,28 +38,31 @@ class WatchWallet {
       id: id,
       name: name,
       address: address,
+      stakeAddress: stakeAddress,
       network: network,
       createdAt: now,
     );
   }
 
-  /// 从 JSON 反序列化
+  /// 从 JSON 反序列化（向后兼容：旧数据无 stakeAddress 字段时为 null）
   factory WatchWallet.fromJson(Map<String, dynamic> json) {
     return WatchWallet(
       id: json['id'] as String,
       name: json['name'] as String,
       address: json['address'] as String,
+      stakeAddress: json['stakeAddress'] as String?,
       network: json['network'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
 
-  /// 序列化为 JSON
+  /// 序列化为 JSON（stakeAddress 为 null 时省略）
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'name': name,
       'address': address,
+      if (stakeAddress != null) 'stakeAddress': stakeAddress,
       'network': network,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -64,6 +73,8 @@ class WatchWallet {
     String? id,
     String? name,
     String? address,
+    String? stakeAddress,
+    bool clearStakeAddress = false,
     String? network,
     DateTime? createdAt,
   }) {
@@ -71,6 +82,7 @@ class WatchWallet {
       id: id ?? this.id,
       name: name ?? this.name,
       address: address ?? this.address,
+      stakeAddress: clearStakeAddress ? null : (stakeAddress ?? this.stakeAddress),
       network: network ?? this.network,
       createdAt: createdAt ?? this.createdAt,
     );
