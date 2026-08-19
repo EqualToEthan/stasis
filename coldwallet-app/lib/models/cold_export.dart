@@ -1,6 +1,6 @@
 import 'certificate.dart';
 
-/// 插件端导出给离线设备的数据（未签名交易）
+/// 联网端导出给离线设备的数据（未签名交易）
 ///
 /// 包含交易 CBOR、网络标识和摘要信息，
 /// 通过二维码或文件传递给冷钱包进行离线签名。
@@ -32,6 +32,7 @@ class ColdExport {
     this.stakeKeyPath,
   });
 
+  /// 从 JSON 反序列化，质押字段可选
   factory ColdExport.fromJson(Map<String, dynamic> json) {
     return ColdExport(
       version: json['version'] as int,
@@ -42,12 +43,14 @@ class ColdExport {
       certificates: (json['certificates'] as List<dynamic>?)
           ?.map((e) => Certificate.fromJson(e as Map<String, dynamic>))
           .toList(),
-      withdrawals: (json['withdrawals'] as Map<String, dynamic>?)
-          ?.map((k, v) => MapEntry(k, v as int)),
+      withdrawals: (json['withdrawals'] as Map<String, dynamic>?)?.map(
+        (k, v) => MapEntry(k, v as int),
+      ),
       stakeKeyPath: json['stakeKeyPath'] as String?,
     );
   }
 
+  /// 序列化为 JSON，质押字段为 null 时省略
   Map<String, dynamic> toJson() {
     return {
       'version': version,

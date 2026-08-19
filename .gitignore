@@ -1,6 +1,10 @@
 # Better Harness reports (regeneratable)
 .qoder/better-harness-runs/
 
+# Hook runtime artifacts
+.qoder/hooks/.analyze.lock
+.qoder/hooks/analyze.log
+
 # CodeGraph binary index
 **/.codegraph/codegraph.db
 **/.codegraph/codegraph.db-shm

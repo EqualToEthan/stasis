@@ -42,7 +42,11 @@ void main() {
         },
         'certificates': [
           {'type': 'stakeRegistration', 'stakeCredential': 'cred123'},
-          {'type': 'stakeDelegation', 'stakeCredential': 'cred123', 'poolKeyHash': 'pool456'},
+          {
+            'type': 'stakeDelegation',
+            'stakeCredential': 'cred123',
+            'poolKeyHash': 'pool456',
+          },
         ],
         'stakeKeyPath': "m/1852'/1815'/0'/2/0",
       };
@@ -92,7 +96,11 @@ void main() {
           'fee': '180000',
         },
         'certificates': [
-          {'type': 'stakeDelegation', 'stakeCredential': 'cred123', 'poolKeyHash': 'pool456'},
+          {
+            'type': 'stakeDelegation',
+            'stakeCredential': 'cred123',
+            'poolKeyHash': 'pool456',
+          },
         ],
         'withdrawals': {'stake_test1abc': 3000000},
         'stakeKeyPath': "m/1852'/1815'/0'/2/0",

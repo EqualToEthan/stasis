@@ -77,9 +77,9 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
 
     // 作为纯地址处理
     _addressController.text = trimmed;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已识别地址')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已识别地址')));
   }
 
   Future<void> _save() async {
@@ -180,15 +180,17 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             const SizedBox(height: 8),
             Text(
               '可通过扫描二维码同时导入支付地址和 stake address',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _saving || !_initialized ? null : () => setState(() => _showingScanner = true),
+                onPressed: _saving || !_initialized
+                    ? null
+                    : () => setState(() => _showingScanner = true),
                 icon: const Icon(Icons.qr_code_scanner),
                 label: const Text('扫描二维码'),
               ),

@@ -4,11 +4,7 @@
 /// - [stakeRegistration] — 注册 stake key（需 2 ADA deposit）
 /// - [stakeDelegation] — 委托给 stake pool
 /// - [stakeDeregistration] — 解除 stake key 注册（退还 2 ADA deposit）
-enum CertificateType {
-  stakeRegistration,
-  stakeDelegation,
-  stakeDeregistration,
-}
+enum CertificateType { stakeRegistration, stakeDelegation, stakeDeregistration }
 
 /// Cardano 质押证书
 ///
@@ -29,17 +25,20 @@ class Certificate {
     this.poolKeyHash,
   });
 
+  /// 序列化为 JSON
   Map<String, dynamic> toJson() => {
     'type': type.name,
     'stakeCredential': stakeCredential,
     if (poolKeyHash != null) 'poolKeyHash': poolKeyHash,
   };
 
+  /// 从 JSON 反序列化，未知 type 时抛出 [StateError]
   factory Certificate.fromJson(Map<String, dynamic> json) {
     return Certificate(
       type: CertificateType.values.firstWhere(
         (e) => e.name == json['type'],
-        orElse: () => throw StateError('Unknown certificate type: ${json['type']}'),
+        orElse: () =>
+            throw StateError('Unknown certificate type: ${json['type']}'),
       ),
       stakeCredential: json['stakeCredential'] as String,
       poolKeyHash: json['poolKeyHash'] as String?,

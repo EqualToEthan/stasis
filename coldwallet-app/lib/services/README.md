@@ -11,7 +11,7 @@
 | wallet_service.dart | WalletService | 钱包服务，助记词生成/验证、HD 钱包创建、多链地址派生、多钱包管理和 PIN 管理 |
 | chain_registry.dart | ChainRegistry | 链注册中心，管理链配置、适配器查找与交易链解析（扫码/导入链联动校验） |
 | adapters/chain_adapter.dart | ChainAdapter | 链适配器抽象接口，定义地址派生、交易解析和签名方法 |
-| adapters/cardano_adapter.dart | CardanoAdapter | Cardano 适配器，CIP-1852 地址派生 + Ed25519 签名 |
+| adapters/cardano_adapter.dart | CardanoAdapter | Cardano 适配器，CIP-1852 地址派生 + Ed25519 签名（含质押交易 stake key witness） |
 | adapters/evm_adapter.dart | EvmAdapter | EVM 适配器，BIP-44 地址派生 + EIP-155/EIP-1559 签名 |
 
 ## 公开方法
@@ -25,6 +25,7 @@
 | `validateMnemonic(mnemonic)` | `bool` | 校验助记词是否有效 |
 | `createWallet(mnemonic, {testnet})` | `Future<CardanoWallet>` | 从助记词创建 HD 钱包 |
 | `deriveAddress(mnemonic, {testnet})` | `Future<String>` | 派生 Cardano CIP-1852 地址（m/1852'/1815'/0'/0/0） |
+| `deriveStakeAddress(mnemonic, {testnet})` | `Future<String>` | 派生 Cardano stake address（m/1852'/1815'/0'/2/0） |
 | `deriveAddressForChain(mnemonic, config)` | `Future<String>` | 派生指定链的地址（通过 ChainRegistry 路由） |
 | `deriveAllAddresses(mnemonic)` | `Future<Map<String, String>>` | 派生所有链的地址，返回 `Map<chainId, address>` |
 | `getWallets()` | `Future<List<WalletInfo>>` | 获取所有钱包列表 |
@@ -117,6 +118,7 @@ screens/ → TransactionService → WalletService → SecureStorageService（签
 | 修改 PIN 验证逻辑（如改为哈希） | secure_storage_service.dart — 修改 savePin/verifyPin |
 | 添加新的存储配置项 | secure_storage_service.dart — 添加新的 key 和 getter/setter |
 | 支持新的交易类型（如质押委托） | transaction_service.dart — 添加新的签名方法 |
+| 修改质押交易签名逻辑 | adapters/cardano_adapter.dart — 修改 _signStakingTransaction 方法 |
 | 添加新的 EVM 链 | chain_registry.dart — 在 _configs 中添加 ChainConfig 条目 |
 | 添加新的链族（如 Bitcoin） | adapters/ 目录新建适配器 + chain_registry.dart 注册 |
 | 修改 EVM 密钥派生路径 | adapters/evm_adapter.dart — 修改 _derivePrivateKey 中的 indices |

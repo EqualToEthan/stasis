@@ -83,7 +83,10 @@ class WalletService {
   ///
   /// 使用 CIP-1852 路径 m/1852'/1815'/0'/2/0 派生。
   /// testnet 前缀为 stake_test，mainnet 前缀为 stake1。
-  Future<String> deriveStakeAddress(String mnemonic, {bool testnet = true}) async {
+  Future<String> deriveStakeAddress(
+    String mnemonic, {
+    bool testnet = true,
+  }) async {
     final wallet = await createWallet(mnemonic, testnet: testnet);
     return wallet.stakeAddress.bech32Encoded;
   }
@@ -93,7 +96,10 @@ class WalletService {
   /// 派生指定链的地址
   ///
   /// 通过 ChainRegistry 获取对应适配器，从同一助记词派生不同链的地址。
-  Future<String> deriveAddressForChain(String mnemonic, ChainConfig config) async {
+  Future<String> deriveAddressForChain(
+    String mnemonic,
+    ChainConfig config,
+  ) async {
     final adapter = ChainRegistry.adapterFor(config.chainFamily);
     return adapter.deriveAddress(mnemonic, config);
   }

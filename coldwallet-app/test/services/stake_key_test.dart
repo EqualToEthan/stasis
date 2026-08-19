@@ -8,40 +8,60 @@ void main() {
         'abandon abandon abandon abandon abandon abandon '
         'abandon abandon abandon abandon abandon about';
 
-    test('returns stake address starting with stake_test for testnet', () async {
-      final service = WalletService();
-      final stakeAddress =
-          await service.deriveStakeAddress(testMnemonic, testnet: true);
+    test(
+      'returns stake address starting with stake_test for testnet',
+      () async {
+        final service = WalletService();
+        final stakeAddress = await service.deriveStakeAddress(
+          testMnemonic,
+          testnet: true,
+        );
 
-      expect(stakeAddress, startsWith('stake_test'));
-      expect(stakeAddress.length, greaterThan(40));
-    }, timeout: const Timeout(Duration(seconds: 60)));
+        expect(stakeAddress, startsWith('stake_test'));
+        expect(stakeAddress.length, greaterThan(40));
+      },
+      timeout: const Timeout(Duration(seconds: 60)),
+    );
 
-    test('returns stake address starting with stake for mainnet', () async {
-      final service = WalletService();
-      final stakeAddress =
-          await service.deriveStakeAddress(testMnemonic, testnet: false);
+    test(
+      'returns stake address starting with stake for mainnet',
+      () async {
+        final service = WalletService();
+        final stakeAddress = await service.deriveStakeAddress(
+          testMnemonic,
+          testnet: false,
+        );
 
-      expect(stakeAddress, startsWith('stake1'));
-      expect(stakeAddress, isNot(startsWith('stake_test')));
-    }, timeout: const Timeout(Duration(seconds: 60)));
+        expect(stakeAddress, startsWith('stake1'));
+        expect(stakeAddress, isNot(startsWith('stake_test')));
+      },
+      timeout: const Timeout(Duration(seconds: 60)),
+    );
 
-    test('deterministic: same mnemonic produces same stake address', () async {
-      final service = WalletService();
-      final addr1 = await service.deriveStakeAddress(testMnemonic);
-      final addr2 = await service.deriveStakeAddress(testMnemonic);
+    test(
+      'deterministic: same mnemonic produces same stake address',
+      () async {
+        final service = WalletService();
+        final addr1 = await service.deriveStakeAddress(testMnemonic);
+        final addr2 = await service.deriveStakeAddress(testMnemonic);
 
-      expect(addr1, addr2);
-    }, timeout: const Timeout(Duration(seconds: 60)));
+        expect(addr1, addr2);
+      },
+      timeout: const Timeout(Duration(seconds: 60)),
+    );
 
-    test('different mnemonic produces different stake address', () async {
-      final service = WalletService();
-      // 使用 generateMnemonic 保证生成有效的 BIP-39 助记词
-      final otherMnemonic = service.generateMnemonic().join(' ');
-      final addr1 = await service.deriveStakeAddress(testMnemonic);
-      final addr2 = await service.deriveStakeAddress(otherMnemonic);
+    test(
+      'different mnemonic produces different stake address',
+      () async {
+        final service = WalletService();
+        // 使用 generateMnemonic 保证生成有效的 BIP-39 助记词
+        final otherMnemonic = service.generateMnemonic().join(' ');
+        final addr1 = await service.deriveStakeAddress(testMnemonic);
+        final addr2 = await service.deriveStakeAddress(otherMnemonic);
 
-      expect(addr1, isNot(addr2));
-    }, timeout: const Timeout(Duration(seconds: 60)));
+        expect(addr1, isNot(addr2));
+      },
+      timeout: const Timeout(Duration(seconds: 60)),
+    );
   });
 }

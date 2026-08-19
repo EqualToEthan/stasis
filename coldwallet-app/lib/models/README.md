@@ -6,7 +6,8 @@
 
 | 文件 | 主要类 | 功能说明 |
 |------|--------|----------|
-| cold_export.dart | ColdExport, TxSummary, AssetAmount | Cardano 联网端导出的未签名交易数据，包含 CBOR、摘要和资产列表 |
+| certificate.dart | Certificate, CertificateType | Cardano 质押证书模型，描述注册/委托/解除注册操作 |
+| cold_export.dart | ColdExport, TxSummary, AssetAmount | Cardano 联网端导出的未签名交易数据，包含 CBOR、摘要、资产列表和质押字段 |
 | cold_import.dart | ColdImport | Cardano 离线签名后导出的已签名交易数据，包含 CBOR 和交易哈希 |
 | wallet_info.dart | WalletInfo, WalletListCodec | 钱包元数据模型（ID、名称、创建时间），与助记词分离存储 |
 | chain_config.dart | ChainConfig | 链配置模型，描述链 ID、链族、名称、网络和 EVM chain ID |
@@ -37,6 +38,9 @@
 | `network` | `String` | 网络标识（`mainnet` / `testnet`） |
 | `txCbor` | `String` | 未签名交易的 CBOR hex 编码 |
 | `summary` | `TxSummary` | 交易摘要（供用户确认） |
+| `certificates` | `List<Certificate>?` | 质押证书列表（仅质押交易） |
+| `withdrawals` | `Map<String, int>?` | 奖励提取映射（仅质押交易） |
+| `stakeKeyPath` | `String?` | stake key 派生路径（仅质押交易） |
 
 ### TxSummary — 交易摘要
 
@@ -55,6 +59,14 @@
 | `quantity` | `String` | 数量（最小单位） |
 | `displayName` | `String?` | 可选的显示名称 |
 | `displayLabel` | `String`（getter） | 优先使用 displayName，否则显示 unit |
+
+### Certificate — 质押证书
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `type` | `CertificateType` | 证书类型：stakeRegistration / stakeDelegation / stakeDeregistration |
+| `stakeCredential` | `String` | blake2b_224(stake public key)，28 字节 hex 编码 |
+| `poolKeyHash` | `String?` | 委托目标 pool key hash（仅 delegation） |
 
 ### ColdImport — 已签名交易（冷端 → 热端）
 
@@ -125,6 +137,7 @@
 | 修改交易摘要展示的内容 | cold_export.dart — 修改 TxSummary 类 |
 | 修改钱包 ID 生成策略 | wallet_info.dart — 修改 _generateId 方法 |
 | 修改冷热钱包传输格式 | cold_export.dart / cold_import.dart — 同步修改两端模型 |
+| 添加质押证书类型 | certificate.dart — 修改 CertificateType 和 Certificate |
 | 添加新的 EVM 链支持 | chain_config.dart 添加配置 + chain_registry.dart 注册 |
 | 修改 EVM 交易摘要字段 | eth_cold_export.dart — 修改 EvmTxSummary 类 |
 | 修改签名结果格式 | sign_result.dart — 修改 SignResult 类 |

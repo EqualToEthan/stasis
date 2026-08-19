@@ -1,0 +1,49 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "coldwallet-app",
+            "cwd": "coldwallet-app",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "coldwallet-app (profile mode)",
+            "cwd": "coldwallet-app",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "coldwallet-app (release mode)",
+            "cwd": "coldwallet-app",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "coldwallet-watch",
+            "cwd": "coldwallet-watch",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "coldwallet-watch (profile mode)",
+            "cwd": "coldwallet-watch",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "coldwallet-watch (release mode)",
+            "cwd": "coldwallet-watch",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}

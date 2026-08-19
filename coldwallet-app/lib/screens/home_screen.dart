@@ -537,7 +537,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () => _showCombinedQrDialog(selectedAddress, _stakeAddress!),
+            onPressed: () =>
+                _showCombinedQrDialog(selectedAddress, _stakeAddress!),
             icon: const Icon(Icons.qr_code_2),
             label: const Text('显示地址二维码（供观察钱包扫码导入）'),
           ),

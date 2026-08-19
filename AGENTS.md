@@ -43,13 +43,9 @@ coldwallet/
 
 ## 验证命令
 
-每次代码编辑后，必须运行以下验证：
+涉及 UI 改动或重要逻辑变更时，手动运行以下验证：
 
 ```bash
-# Dart 静态分析（在对应子项目目录执行）
-cd coldwallet-app && flutter analyze
-cd coldwallet-watch && flutter analyze
-
 # 运行测试
 cd coldwallet-app && flutter test
 cd coldwallet-watch && flutter test
@@ -58,8 +54,6 @@ cd coldwallet-watch && flutter test
 cd coldwallet-app && flutter build apk --debug
 cd coldwallet-watch && flutter build apk --debug
 ```
-
-最小验证流程：编辑代码后至少运行 `flutter analyze`，确认无错误和警告。涉及 UI 改动时还需运行 `flutter test`。
 
 ## 依赖管理
 

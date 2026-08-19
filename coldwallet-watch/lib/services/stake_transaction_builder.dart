@@ -52,12 +52,21 @@ class StakeTransactionBuilder {
     // 构建证书列表
     final certs = <Certificate>[];
     if (!isStakeRegistered) {
-      certs.add(Certificate.stakeRegistrationLegacy(stakeCredential: stakeCredential));
+      certs.add(
+        Certificate.stakeRegistrationLegacy(stakeCredential: stakeCredential),
+      );
     }
-    certs.add(Certificate.stakeDelegation(stakeCredential: stakeCredential, stakePoolId: poolId));
+    certs.add(
+      Certificate.stakeDelegation(
+        stakeCredential: stakeCredential,
+        stakePoolId: poolId,
+      ),
+    );
 
     // deposit 仅在注册时需要
-    final deposit = isStakeRegistered ? BigInt.zero : BigInt.from(stakeDepositLovelace);
+    final deposit = isStakeRegistered
+        ? BigInt.zero
+        : BigInt.from(stakeDepositLovelace);
 
     return _buildStakingTx(
       fromAddress: fromAddress,
@@ -155,7 +164,9 @@ class StakeTransactionBuilder {
       minFeeA: minFeeA,
       minFeeB: minFeeB,
       network: network,
-      certs: [Certificate.stakeDeRegistrationLegacy(stakeCredential: stakeCredential)],
+      certs: [
+        Certificate.stakeDeRegistrationLegacy(stakeCredential: stakeCredential),
+      ],
       withdrawals: null,
       extraCost: BigInt.zero,
       // 退还 deposit 2 ADA
@@ -222,11 +233,17 @@ class StakeTransactionBuilder {
       );
     }).toList();
 
-    final networkId = network == 'mainnet' ? NetworkId.mainnet : NetworkId.testnet;
+    final networkId = network == 'mainnet'
+        ? NetworkId.mainnet
+        : NetworkId.testnet;
     final fromAddr = Address.fromBase58OrBech32(fromAddress);
 
     final sdkCerts = certs != null
-        ? Certificates(certificates: certs, cborTags: [], lengthType: CborLengthType.definite)
+        ? Certificates(
+            certificates: certs,
+            cborTags: [],
+            lengthType: CborLengthType.definite,
+          )
         : null;
 
     for (var i = 0; i < 5; i++) {

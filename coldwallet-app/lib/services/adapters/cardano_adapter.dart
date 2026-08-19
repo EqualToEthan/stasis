@@ -86,8 +86,10 @@ class CardanoAdapter implements ChainAdapter {
         .map((c) => c.poolKeyHash)
         .nonNulls
         .lastOrNull;
-    final hasDeregistration = export.certificates
-        ?.any((c) => c.type == CertificateType.stakeDeregistration) ??
+    final hasDeregistration =
+        export.certificates?.any(
+          (c) => c.type == CertificateType.stakeDeregistration,
+        ) ??
         false;
 
     final bundle = TxSigningBundle(

@@ -32,6 +32,7 @@ class ColdExport {
     this.stakeKeyPath,
   });
 
+  /// 从 JSON 反序列化，质押字段可选
   factory ColdExport.fromJson(Map<String, dynamic> json) {
     return ColdExport(
       version: json['version'] as int? ?? 1,
@@ -42,12 +43,14 @@ class ColdExport {
       certificates: (json['certificates'] as List<dynamic>?)
           ?.map((e) => Certificate.fromJson(e as Map<String, dynamic>))
           .toList(),
-      withdrawals: (json['withdrawals'] as Map<String, dynamic>?)
-          ?.map((k, v) => MapEntry(k, v as int)),
+      withdrawals: (json['withdrawals'] as Map<String, dynamic>?)?.map(
+        (k, v) => MapEntry(k, v as int),
+      ),
       stakeKeyPath: json['stakeKeyPath'] as String?,
     );
   }
 
+  /// 序列化为 JSON，质押字段为 null 时省略
   Map<String, dynamic> toJson() {
     return {
       'version': version,

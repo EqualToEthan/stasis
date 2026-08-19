@@ -82,7 +82,9 @@ class WatchWallet {
       id: id ?? this.id,
       name: name ?? this.name,
       address: address ?? this.address,
-      stakeAddress: clearStakeAddress ? null : (stakeAddress ?? this.stakeAddress),
+      stakeAddress: clearStakeAddress
+          ? null
+          : (stakeAddress ?? this.stakeAddress),
       network: network ?? this.network,
       createdAt: createdAt ?? this.createdAt,
     );

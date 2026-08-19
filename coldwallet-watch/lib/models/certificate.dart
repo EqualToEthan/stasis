@@ -1,9 +1,5 @@
 /// Cardano 质押证书类型
-enum CertificateType {
-  stakeRegistration,
-  stakeDelegation,
-  stakeDeregistration,
-}
+enum CertificateType { stakeRegistration, stakeDelegation, stakeDeregistration }
 
 /// 质押证书模型（ColdExport 用）
 ///
@@ -24,17 +20,20 @@ class Certificate {
     this.poolKeyHash,
   });
 
+  /// 序列化为 JSON，poolKeyHash 为 null 时省略
   Map<String, dynamic> toJson() => {
     'type': type.name,
     'stakeCredential': stakeCredential,
     if (poolKeyHash != null) 'poolKeyHash': poolKeyHash,
   };
 
+  /// 从 JSON 反序列化，未知 type 时抛出 [StateError]
   factory Certificate.fromJson(Map<String, dynamic> json) {
     return Certificate(
       type: CertificateType.values.firstWhere(
         (e) => e.name == json['type'],
-        orElse: () => throw StateError('Unknown certificate type: ${json['type']}'),
+        orElse: () =>
+            throw StateError('Unknown certificate type: ${json['type']}'),
       ),
       stakeCredential: json['stakeCredential'] as String,
       poolKeyHash: json['poolKeyHash'] as String?,
