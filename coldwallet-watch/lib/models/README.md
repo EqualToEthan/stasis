@@ -7,7 +7,8 @@
 | 文件 | 主要类 | 功能说明 |
 |------|--------|----------|
 | asset_balance.dart | AssetBalance | 资产余额模型，包含资产标识、数量、显示名称和启用状态 |
-| cold_export.dart | ColdExport, TxSummary, AssetAmount | 热端导出给冷端的未签名交易数据，包含 CBOR、摘要和资产列表 |
+| certificate.dart | Certificate, CertificateType | 质押证书模型，描述注册/委托/解除注册操作 |
+| cold_export.dart | ColdExport, TxSummary, AssetAmount | 热端导出给冷端的未签名交易数据，包含 CBOR、摘要、资产列表和质押字段 |
 | cold_import.dart | ColdImport | 冷端签名后返回给热端的已签名交易数据，包含 CBOR 和交易哈希 |
 | watch_wallet.dart | WatchWallet | 只读钱包模型，存储观察地址的名称、地址、网络和创建时间 |
 
@@ -20,6 +21,7 @@
 | `id` | `String` | 基于时间戳的唯一 ID |
 | `name` | `String` | 用户自定义钱包名称 |
 | `address` | `String` | Cardano bech32 观察地址 |
+| `stakeAddress` | `String?` | Cardano stake address（可选，质押功能需要） |
 | `network` | `String` | 网络标识（`preview`） |
 | `createdAt` | `DateTime` | 创建时间 |
 
@@ -49,6 +51,9 @@
 | `network` | `String` | 网络标识 |
 | `txCbor` | `String` | 未签名交易的 CBOR hex 编码 |
 | `summary` | `TxSummary` | 交易摘要 |
+| `certificates` | `List<Certificate>?` | 质押证书列表（仅质押交易） |
+| `withdrawals` | `Map<String, int>?` | 奖励提取映射（仅质押交易） |
+| `stakeKeyPath` | `String?` | stake key 派生路径（仅质押交易） |
 
 ### TxSummary — 交易摘要
 
@@ -67,6 +72,14 @@
 | `quantity` | `String` | 数量（最小单位） |
 | `displayName` | `String?` | 可选显示名称 |
 | `displayLabel` | `String`（getter） | 优先 displayName，否则 unit |
+
+### Certificate — 质押证书
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `type` | `CertificateType` | 证书类型：stakeRegistration / stakeDelegation / stakeDeregistration |
+| `stakeCredential` | `String` | blake2b_224(stake public key)，28 字节 hex 编码 |
+| `poolKeyHash` | `String?` | 委托目标 pool key hash（仅 delegation） |
 
 ### ColdImport — 已签名交易（冷端 → 热端）
 

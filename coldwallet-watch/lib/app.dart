@@ -12,7 +12,7 @@ import 'screens/staking_screen.dart';
 /// 观察钱包 App 根组件
 ///
 /// 配置 MaterialApp 路由表和 Material3 主题。
-/// 路由包括：首页、添加钱包、发送、收款、导出交易、导入签名、设置。
+/// 路由包括：首页、添加钱包、发送、收款、导出交易、导入签名、设置、质押管理。
 class ColdWalletWatchApp extends StatelessWidget {
   const ColdWalletWatchApp({super.key});
 

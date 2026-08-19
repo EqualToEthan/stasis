@@ -65,6 +65,9 @@
 | `network` | `String` | 是 | 网络标识：`"mainnet"` / `"testnet"` / `"preview"` |
 | `txCbor` | `String` | 是 | 未签名交易体的 CBOR hex 编码 |
 | `summary` | `TxSummary` | 是 | 交易摘要，供冷端用户确认 |
+| `certificates` | `Certificate[]?` | 否 | 质押证书列表（仅质押交易） |
+| `withdrawals` | `Map<String, int>?` | 否 | 奖励提取：stake_address → lovelace 数量（仅质押交易） |
+| `stakeKeyPath` | `String?` | 否 | stake key 派生路径（仅质押交易，如 `m/1852'/1815'/0'/2/0`） |
 
 ### TxSummary — 交易摘要
 
@@ -82,6 +85,67 @@
 | `unit` | `String` | 是 | ADA 为 `"lovelace"`，原生代币为 policyId+assetName hex |
 | `quantity` | `String` | 是 | 数量（最小单位，字符串表示） |
 | `displayName` | `String?` | 否 | 可选的显示名称 |
+
+### Certificate — 质押证书
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `type` | `String` | 是 | 证书类型：`stakeRegistration` / `stakeDelegation` / `stakeDeregistration` |
+| `stakeCredential` | `String` | 是 | blake2b_224(stake public key)，28 字节 hex 编码 |
+| `poolKeyHash` | `String?` | 否 | 委托目标 pool key hash（仅 `stakeDelegation`） |
+
+```json
+{
+  "type": "stakeDelegation",
+  "stakeCredential": "a1b2c3d4e5f6...",
+  "poolKeyHash": "pool1abc..."
+}
+```
+
+### 质押交易示例
+
+委托交易（注册 + 委托合并）：
+
+```json
+{
+  "version": 1,
+  "type": "unsigned-tx",
+  "network": "preview",
+  "txCbor": "<CBOR hex>",
+  "summary": {
+    "fromAddress": "addr_test1qz...",
+    "toAddress": "addr_test1qz...",
+    "assets": [{ "unit": "lovelace", "quantity": "0" }],
+    "fee": "180000"
+  },
+  "certificates": [
+    { "type": "stakeRegistration", "stakeCredential": "a1b2c3..." },
+    { "type": "stakeDelegation", "stakeCredential": "a1b2c3...", "poolKeyHash": "pool1abc..." }
+  ],
+  "stakeKeyPath": "m/1852'/1815'/0'/2/0"
+}
+```
+
+提取奖励交易：
+
+```json
+{
+  "version": 1,
+  "type": "unsigned-tx",
+  "network": "preview",
+  "txCbor": "<CBOR hex>",
+  "summary": {
+    "fromAddress": "addr_test1qz...",
+    "toAddress": "addr_test1qz...",
+    "assets": [{ "unit": "lovelace", "quantity": "0" }],
+    "fee": "175000"
+  },
+  "withdrawals": {
+    "stake_test1u...": 5000000
+  },
+  "stakeKeyPath": "m/1852'/1815'/0'/2/0"
+}
+```
 
 ### ColdImport — 已签名交易（冷端 → 热端）
 
@@ -102,6 +166,26 @@
 | `type` | `String` | 是 | 固定为 `"signed-tx"` |
 | `txCbor` | `String` | 是 | 已签名交易的完整 CBOR hex 编码 |
 | `txHash` | `String` | 是 | 交易哈希（blake2b_256 of tx body） |
+
+## 地址导入格式
+
+观察钱包添加钱包时，支持扫描二维码同时导入支付地址和 stake address。
+
+### 合并地址 QR
+
+```json
+{
+  "paymentAddress": "addr_test1qz...",
+  "stakeAddress": "stake_test1u..."
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `paymentAddress` | `String` | 是 | Cardano 支付地址（bech32 格式） |
+| `stakeAddress` | `String` | 是 | Cardano stake address（bech32 格式） |
+
+coldwallet-app 导出时生成的 QR 即为此格式，coldwallet-watch 扫码后自动解析两个字段。
 
 ## 传输方式
 
@@ -130,5 +214,6 @@
 |----------|---------------|-----------------|
 | ColdExport | `lib/models/cold_export.dart` | `lib/models/cold_export.dart` |
 | ColdImport | `lib/models/cold_import.dart` | `lib/models/cold_import.dart` |
+| Certificate | `lib/models/certificate.dart` | `lib/models/certificate.dart` |
 
 > 两端的模型定义保持一致，修改时需要同步更新。
