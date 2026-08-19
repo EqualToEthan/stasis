@@ -7,6 +7,7 @@ import 'screens/import_signed_screen.dart';
 import 'screens/receive_screen.dart';
 import 'screens/send_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/staking_screen.dart';
 
 /// 观察钱包 App 根组件
 ///
@@ -33,6 +34,7 @@ class ColdWalletWatchApp extends StatelessWidget {
         '/export-tx': (context) => const ExportTxScreen(),
         '/import-signed': (context) => const ImportSignedScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/staking': (context) => const StakingScreen(),
       },
     );
   }

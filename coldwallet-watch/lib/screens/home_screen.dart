@@ -280,25 +280,41 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildActionButtons(WatchWallet wallet) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _ActionButton(
-            icon: Icons.send,
-            label: '发送',
-            onTap: () =>
-                Navigator.pushNamed(context, '/send', arguments: wallet),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.send,
+                label: '发送',
+                onTap: () =>
+                    Navigator.pushNamed(context, '/send', arguments: wallet),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.qr_code,
+                label: '收款',
+                onTap: () =>
+                    Navigator.pushNamed(context, '/receive', arguments: wallet),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _ActionButton(
-            icon: Icons.qr_code,
-            label: '收款',
-            onTap: () =>
-                Navigator.pushNamed(context, '/receive', arguments: wallet),
+        if (wallet.stakeAddress != null) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: _ActionButton(
+              icon: Icons.how_to_vote,
+              label: '质押',
+              onTap: () =>
+                  Navigator.pushNamed(context, '/staking', arguments: wallet),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
