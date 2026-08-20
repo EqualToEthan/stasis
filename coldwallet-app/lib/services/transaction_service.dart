@@ -5,8 +5,7 @@ import 'package:cardano_dart_types/cardano_dart_types.dart';
 import 'package:hex/hex.dart';
 import 'package:pointycastle/export.dart';
 
-import '../models/cold_export.dart';
-import '../models/cold_import.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import 'chain_registry.dart';
 import 'wallet_service.dart';
 
@@ -33,10 +32,12 @@ class TransactionService {
     if (mnemonic == null || mnemonic.isEmpty) {
       throw Exception('当前钱包未初始化或助记词丢失');
     }
+    final passphrase = await _walletService.loadCurrentPassphrase();
 
     final wallet = await _walletService.createWallet(
       mnemonic,
       testnet: coldExport.network != 'mainnet',
+      passphrase: passphrase,
     );
 
     final tx = CardanoTransaction.deserializeFromHex(coldExport.txCbor);
@@ -81,6 +82,7 @@ class TransactionService {
     if (mnemonic == null || mnemonic.isEmpty) {
       throw Exception('当前钱包未初始化或助记词丢失');
     }
+    final passphrase = await _walletService.loadCurrentPassphrase();
 
     if (chainId == null) {
       // 向后兼容：Cardano ColdExport
@@ -96,7 +98,12 @@ class TransactionService {
 
     final adapter = ChainRegistry.adapterFor(config.chainFamily);
     final export = adapter.parseExport(rawJson);
-    final result = await adapter.signTransaction(mnemonic, export, config);
+    final result = await adapter.signTransaction(
+      mnemonic,
+      export,
+      config,
+      passphrase: passphrase,
+    );
 
     return {
       'version': result.version,

@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'package:cardano_dart_types/cardano_dart_types.dart';
 import 'package:hex/hex.dart';
 
-import '../models/cold_export.dart';
-import '../models/certificate.dart' as app_cert;
+import 'package:coldwallet_protocol/coldwallet_protocol.dart' hide Certificate, CertificateType;
+import 'package:coldwallet_protocol/cardano/certificate.dart' as proto_cert;
 import 'blockfrost_service.dart';
 
 /// 质押交易构建器
@@ -80,12 +80,12 @@ class StakeTransactionBuilder {
       extraCost: deposit,
       exportCerts: [
         if (!isStakeRegistered)
-          app_cert.Certificate(
-            type: app_cert.CertificateType.stakeRegistration,
+          proto_cert.Certificate(
+            type: proto_cert.CertificateType.stakeRegistration,
             stakeCredential: HEX.encode(stakeCredBytes),
           ),
-        app_cert.Certificate(
-          type: app_cert.CertificateType.stakeDelegation,
+        proto_cert.Certificate(
+          type: proto_cert.CertificateType.stakeDelegation,
           stakeCredential: HEX.encode(stakeCredBytes),
           poolKeyHash: poolIdBech32,
         ),
@@ -172,8 +172,8 @@ class StakeTransactionBuilder {
       // 退还 deposit 2 ADA
       extraIncome: BigInt.from(stakeDepositLovelace),
       exportCerts: [
-        app_cert.Certificate(
-          type: app_cert.CertificateType.stakeDeregistration,
+        proto_cert.Certificate(
+          type: proto_cert.CertificateType.stakeDeregistration,
           stakeCredential: HEX.encode(stakeCredBytes),
         ),
       ],
@@ -201,7 +201,7 @@ class StakeTransactionBuilder {
     List<Withdraw>? withdrawals,
     required BigInt extraCost,
     BigInt? extraIncome,
-    List<app_cert.Certificate>? exportCerts,
+    List<proto_cert.Certificate>? exportCerts,
     Map<String, int>? exportWithdrawals,
   }) async {
     final income = extraIncome ?? BigInt.zero;

@@ -6,9 +6,9 @@ import 'package:cardano_flutter_sdk/cardano_flutter_sdk.dart';
 import 'package:hex/hex.dart';
 import 'package:pointycastle/export.dart';
 
-import '../../models/certificate.dart';
+import 'package:bip39_plus/bip39_plus.dart' as bip39;
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../../models/chain_config.dart';
-import '../../models/cold_export.dart';
 import '../../models/sign_result.dart';
 import 'chain_adapter.dart';
 
@@ -21,11 +21,15 @@ class CardanoAdapter implements ChainAdapter {
   String get chainFamily => 'cardano';
 
   @override
-  Future<String> deriveAddress(String mnemonic, ChainConfig config) async {
-    final isTestnet = config.network != 'mainnet';
-    final wallet = await WalletFactory.fromMnemonic(
-      isTestnet ? NetworkId.testnet : NetworkId.mainnet,
-      mnemonic.trim().split(RegExp(r'\s+')),
+  Future<String> deriveAddress(
+    String mnemonic,
+    ChainConfig config, {
+    String passphrase = '',
+  }) async {
+    final wallet = await _createCardanoWallet(
+      mnemonic,
+      config.network != 'mainnet',
+      passphrase: passphrase,
     );
     final addrKit = await wallet.getPaymentAddressKit(addressIndex: 0);
     return addrKit.address.bech32Encoded;
@@ -41,14 +45,16 @@ class CardanoAdapter implements ChainAdapter {
   Future<SignResult> signTransaction(
     String mnemonic,
     dynamic coldExport,
-    ChainConfig config,
-  ) async {
+    ChainConfig config, {
+    String passphrase = '',
+  }) async {
     final export = coldExport as ColdExport;
     final isTestnet = export.network != 'mainnet';
 
-    final wallet = await WalletFactory.fromMnemonic(
-      isTestnet ? NetworkId.testnet : NetworkId.mainnet,
-      mnemonic.trim().split(RegExp(r'\s+')),
+    final wallet = await _createCardanoWallet(
+      mnemonic,
+      isTestnet,
+      passphrase: passphrase,
     );
 
     final tx = CardanoTransaction.deserializeFromHex(export.txCbor);
@@ -131,6 +137,27 @@ class CardanoAdapter implements ChainAdapter {
 
     final signedBundle = await wallet.signTransactionsBundle(bundle);
     return signedBundle.txsData[0].nweSignatures;
+  }
+
+  /// 创建 CardanoWallet，支持可选 BIP-39 密码短语
+  ///
+  /// 当 passphrase 非空时，通过 BIP-39 mnemonic + passphrase 生成种子再创建钱包，
+  /// 相同助记词 + 不同密码短语会产生完全不同的地址。
+  Future<CardanoWallet> _createCardanoWallet(
+    String mnemonic,
+    bool isTestnet, {
+    String passphrase = '',
+  }) async {
+    final network = isTestnet ? NetworkId.testnet : NetworkId.mainnet;
+    if (passphrase.isEmpty) {
+      return WalletFactory.fromMnemonic(
+        network,
+        mnemonic.trim().split(RegExp(r'\s+')),
+      );
+    }
+    final seed = bip39.mnemonicToSeed(mnemonic.trim(), passphrase: passphrase);
+    final hdWallet = HdWallet.fromSeed(seed);
+    return WalletFactory.fromHdWallet(network, hdWallet);
   }
 
   /// 计算 blake2b_256 哈希

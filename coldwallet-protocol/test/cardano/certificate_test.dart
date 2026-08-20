@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:coldwallet_app/models/certificate.dart';
+import 'package:test/test.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 
 void main() {
   group('Certificate', () {

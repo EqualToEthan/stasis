@@ -581,6 +581,9 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 显示合并地址二维码：包含 payment address + stake address
   ///
   /// 观察钱包扫码后可一次性导入两个地址。
+  /// QrImageView 内部使用 LayoutBuilder，与 AlertDialog 的 IntrinsicWidth
+  /// 不兼容，需用 SizedBox 包裹提供明确尺寸以避免固有尺寸断言异常。
+  /// 需设置 backgroundColor: Colors.white 确保暗色主题下 QR 码对比度。
   void _showCombinedQrDialog(String paymentAddress, String stakeAddress) {
     final combinedJson = jsonEncode({
       'paymentAddress': paymentAddress,
@@ -593,15 +596,22 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('地址二维码'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            QrImageView(
-              data: combinedJson,
-              version: QrVersions.auto,
-              size: 240,
+            SizedBox(
+              width: 240,
+              height: 240,
+              child: QrImageView(
+                data: combinedJson,
+                version: QrVersions.auto,
+                size: 240,
+                backgroundColor: Colors.white,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
               '观察钱包扫描此二维码导入地址',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],

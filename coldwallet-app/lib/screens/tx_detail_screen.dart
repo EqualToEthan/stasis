@@ -2,8 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
-import '../models/cold_export.dart';
-import '../models/eth_cold_export.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../services/chain_registry.dart';
 import 'confirm_sign_screen.dart';
 

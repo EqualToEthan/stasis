@@ -1,0 +1,12 @@
+name: coldwallet_protocol
+description: >-
+  Stasis 冷热钱包通信协议模型。
+  定义 ColdExport / ColdImport 等数据交换格式，供 coldwallet-app 和 coldwallet-watch 共享。
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.11.1
+
+dev_dependencies:
+  test: ^1.24.0

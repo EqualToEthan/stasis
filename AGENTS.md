@@ -73,3 +73,17 @@ Flutter SDK: ^3.11.1，Dart SDK: ^3.11.1。
 - 多链通过 ChainAdapter 适配器模式扩展，新增链族只需新建适配器 + 注册 ChainConfig
 - 代码结构分析必须使用 codegraph MCP（见 `.qoder/rules/codegraph.md`）
 - 每个源码目录需维护 README.md（模块文档），各子项目 `lib/README.md` 为文档索引入口
+
+## Agent skills
+
+### Issue tracker
+
+Issue 和规格文档以本地 Markdown 文件形式存储在 `.scratch/<feature>/` 下。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+五个标准角色：needs-triage、needs-info、ready-for-agent、ready-for-human、wontfix。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+单上下文布局：仓库根目录一份 `CONTEXT.md` + `docs/adr/` 存放架构决策。详见 `docs/agents/domain.md`。

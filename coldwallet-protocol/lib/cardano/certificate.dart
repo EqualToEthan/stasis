@@ -1,17 +1,22 @@
 /// Cardano 质押证书类型
+///
+/// 对应 Cardano transaction body 中的三种证书：
+/// - [stakeRegistration] — 注册 stake key（需 2 ADA deposit）
+/// - [stakeDelegation] — 委托给 stake pool
+/// - [stakeDeregistration] — 解除 stake key 注册（退还 2 ADA deposit）
 enum CertificateType { stakeRegistration, stakeDelegation, stakeDeregistration }
 
-/// 质押证书模型（ColdExport 用）
+/// Cardano 质押证书
 ///
-/// 描述质押相关操作：注册、委托、解除注册。
-/// 与 SDK 的 Certificate 类型对应，但仅用于 JSON 序列化传递给冷钱包。
+/// 序列化后嵌入 [ColdExport] 的 `certificates` 字段，
+/// 冷钱包端解析后生成对应 CBOR 证书并签名。
 class Certificate {
   final CertificateType type;
 
   /// blake2b_224(stake public key)，28 字节 hex 编码
   final String stakeCredential;
 
-  /// 委托目标 pool key hash（仅 delegation 有值）
+  /// Pool key hash（28 字节 hex），仅 delegation 证书有值
   final String? poolKeyHash;
 
   const Certificate({

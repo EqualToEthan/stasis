@@ -13,8 +13,13 @@ abstract class ChainAdapter {
   ///
   /// [mnemonic] BIP-39 助记词（12 或 24 词）
   /// [config] 目标链的配置信息
+  /// [passphrase] 可选 BIP-39 密码短语
   /// 返回链特定格式的地址字符串
-  Future<String> deriveAddress(String mnemonic, ChainConfig config);
+  Future<String> deriveAddress(
+    String mnemonic,
+    ChainConfig config, {
+    String passphrase = '',
+  });
 
   /// 解析未签名交易的 JSON 字符串
   ///
@@ -27,10 +32,12 @@ abstract class ChainAdapter {
   /// [mnemonic] 当前钱包的助记词
   /// [coldExport] parseExport() 返回的对象
   /// [config] 链配置
+  /// [passphrase] 可选 BIP-39 密码短语
   /// 返回统一的 SignResult
   Future<SignResult> signTransaction(
     String mnemonic,
     dynamic coldExport,
-    ChainConfig config,
-  );
+    ChainConfig config, {
+    String passphrase = '',
+  });
 }

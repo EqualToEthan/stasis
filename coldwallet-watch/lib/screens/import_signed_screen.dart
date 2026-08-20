@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../models/cold_import.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../services/blockfrost_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/qr_scanner.dart';

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../models/cold_export.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../widgets/qr_display.dart';
 
 /// 导出未签名交易页面

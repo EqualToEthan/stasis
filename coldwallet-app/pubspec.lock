@@ -97,6 +97,13 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.2.1"
+  coldwallet_protocol:
+    dependency: "direct main"
+    description:
+      path: "../coldwallet-protocol"
+      relative: true
+    source: path
+    version: "1.0.0"
   collection:
     dependency: transitive
     description:

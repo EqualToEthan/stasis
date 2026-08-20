@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coldwallet_app/models/certificate.dart';
-import 'package:coldwallet_app/models/cold_export.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import 'package:coldwallet_app/services/adapters/cardano_adapter.dart';
 
 void main() {

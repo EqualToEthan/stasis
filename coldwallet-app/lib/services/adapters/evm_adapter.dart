@@ -8,7 +8,7 @@ import 'package:web3dart/crypto.dart' as web3crypto;
 import 'package:web3dart/web3dart.dart';
 
 import '../../models/chain_config.dart';
-import '../../models/eth_cold_export.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../../models/sign_result.dart';
 import 'chain_adapter.dart';
 
@@ -27,8 +27,12 @@ class EvmAdapter implements ChainAdapter {
   String get chainFamily => 'evm';
 
   @override
-  Future<String> deriveAddress(String mnemonic, ChainConfig config) async {
-    final privateKey = _derivePrivateKey(mnemonic);
+  Future<String> deriveAddress(
+    String mnemonic,
+    ChainConfig config, {
+    String passphrase = '',
+  }) async {
+    final privateKey = _derivePrivateKey(mnemonic, passphrase: passphrase);
     return privateKey.address.hex;
   }
 
@@ -42,15 +46,16 @@ class EvmAdapter implements ChainAdapter {
   Future<SignResult> signTransaction(
     String mnemonic,
     dynamic coldExport,
-    ChainConfig config,
-  ) async {
+    ChainConfig config, {
+    String passphrase = '',
+  }) async {
     final export = coldExport as EthColdExport;
     final chainId = config.evmChainId;
     if (chainId == null) {
       throw ArgumentError('EVM chain config must include evmChainId');
     }
 
-    final privateKey = _derivePrivateKey(mnemonic);
+    final privateKey = _derivePrivateKey(mnemonic, passphrase: passphrase);
     final rawTxBytes = _hexToBytes(export.rawTxHex);
     final signedTxBytes = _signRawUnsignedTransaction(
       rawTxBytes,
@@ -66,8 +71,10 @@ class EvmAdapter implements ChainAdapter {
   }
 
   /// 使用 BIP-39 seed 和 BIP-32 派生路径 m/44'/60'/0'/0/0 派生 EVM 私钥。
-  EthPrivateKey _derivePrivateKey(String mnemonic) {
-    final seed = bip39.mnemonicToSeed(mnemonic.trim());
+  ///
+  /// [passphrase] 可选 BIP-39 密码短语，影响种子生成。
+  EthPrivateKey _derivePrivateKey(String mnemonic, {String passphrase = ''}) {
+    final seed = bip39.mnemonicToSeed(mnemonic.trim(), passphrase: passphrase);
     final master = _hmacSha512(utf8.encode('Bitcoin seed'), seed);
 
     var key = master.sublist(0, 32);

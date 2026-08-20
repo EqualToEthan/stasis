@@ -1,4 +1,4 @@
-/// EVM 链未签名交易（联网端 → 冷端）
+/// EVM 链未签名交易（观察钱包 → 冷钱包）
 ///
 /// 包含 RLP 编码的未签名 EIP-1559 交易 hex、chainId 和摘要信息，
 /// 通过二维码或文件传递给冷钱包进行离线签名。
@@ -40,7 +40,7 @@ class EthColdExport {
 
 /// EVM 交易摘要
 ///
-/// 包含发送方、接收方、金额、Gas 费用和 nonce，供冷端用户确认。
+/// 包含发送方、接收方、金额、Gas 费用和 nonce，供冷钱包用户确认。
 class EvmTxSummary {
   final String fromAddress;
   final String toAddress;

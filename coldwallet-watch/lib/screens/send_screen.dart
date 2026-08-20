@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/cold_export.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../models/watch_wallet.dart';
 import '../services/blockfrost_service.dart';
 import '../services/storage_service.dart';

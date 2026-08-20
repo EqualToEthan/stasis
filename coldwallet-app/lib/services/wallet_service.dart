@@ -11,7 +11,8 @@ import 'secure_storage_service.dart';
 
 /// 钱包服务（多钱包版）：助记词、地址派生、密钥管理
 ///
-/// 支持最多 5 个钱包，每个钱包独立助记词，共享全局 PIN 和网络设置。
+/// 支持最多 5 个钱包，每个钱包独立助记词和可选 BIP-39 密码短语，
+/// 共享全局 PIN 和网络设置。
 class WalletService {
   static const int maxWallets = 5;
 
@@ -63,18 +64,40 @@ class WalletService {
   ///
   /// [mnemonic] 12 或 24 个单词的助记词
   /// [testnet] 是否为测试网，默认 true
-  Future<CardanoWallet> createWallet(String mnemonic, {bool testnet = true}) {
-    return WalletFactory.fromMnemonic(
-      testnet ? NetworkId.testnet : NetworkId.mainnet,
-      mnemonic.trim().split(RegExp(r'\s+')),
-    );
+  /// [passphrase] BIP-39 密码短语，默认空字符串（不使用）。
+  ///   非空时通过 PBKDF2 将助记词+密码短语生成 64 字节种子再派生钱包，
+  ///   相同的助记词 + 不同的密码短语会产生完全不同的地址。
+  Future<CardanoWallet> createWallet(
+    String mnemonic, {
+    bool testnet = true,
+    String passphrase = '',
+  }) async {
+    final network = testnet ? NetworkId.testnet : NetworkId.mainnet;
+    if (passphrase.isEmpty) {
+      return WalletFactory.fromMnemonic(
+        network,
+        mnemonic.trim().split(RegExp(r'\s+')),
+      );
+    }
+    // BIP-39: mnemonic + passphrase → 64-byte seed → HD wallet
+    final seed = bip39.mnemonicToSeed(mnemonic.trim(), passphrase: passphrase);
+    final hdWallet = HdWallet.fromSeed(seed);
+    return WalletFactory.fromHdWallet(network, hdWallet);
   }
 
   /// 派生第一个外部支付地址
   ///
   /// 使用 CIP-1852 路径 m/1852'/1815'/0'/0/0 派生。
-  Future<String> deriveAddress(String mnemonic, {bool testnet = true}) async {
-    final wallet = await createWallet(mnemonic, testnet: testnet);
+  Future<String> deriveAddress(
+    String mnemonic, {
+    bool testnet = true,
+    String passphrase = '',
+  }) async {
+    final wallet = await createWallet(
+      mnemonic,
+      testnet: testnet,
+      passphrase: passphrase,
+    );
     final addrKit = await wallet.getPaymentAddressKit(addressIndex: 0);
     return addrKit.address.bech32Encoded;
   }
@@ -86,8 +109,13 @@ class WalletService {
   Future<String> deriveStakeAddress(
     String mnemonic, {
     bool testnet = true,
+    String passphrase = '',
   }) async {
-    final wallet = await createWallet(mnemonic, testnet: testnet);
+    final wallet = await createWallet(
+      mnemonic,
+      testnet: testnet,
+      passphrase: passphrase,
+    );
     return wallet.stakeAddress.bech32Encoded;
   }
 
@@ -98,19 +126,27 @@ class WalletService {
   /// 通过 ChainRegistry 获取对应适配器，从同一助记词派生不同链的地址。
   Future<String> deriveAddressForChain(
     String mnemonic,
-    ChainConfig config,
-  ) async {
+    ChainConfig config, {
+    String passphrase = '',
+  }) async {
     final adapter = ChainRegistry.adapterFor(config.chainFamily);
-    return adapter.deriveAddress(mnemonic, config);
+    return adapter.deriveAddress(mnemonic, config, passphrase: passphrase);
   }
 
   /// 获取当前钱包在所有链上的地址
   ///
   /// 返回 `Map<chainId, address>`，遍历 ChainRegistry 中所有配置。
-  Future<Map<String, String>> deriveAllAddresses(String mnemonic) async {
+  Future<Map<String, String>> deriveAllAddresses(
+    String mnemonic, {
+    String passphrase = '',
+  }) async {
     final result = <String, String>{};
     for (final config in ChainRegistry.allConfigs()) {
-      result[config.chainId] = await deriveAddressForChain(mnemonic, config);
+      result[config.chainId] = await deriveAddressForChain(
+        mnemonic,
+        config,
+        passphrase: passphrase,
+      );
     }
     return result;
   }
@@ -169,10 +205,12 @@ class WalletService {
   /// 添加新钱包并设为当前钱包
   ///
   /// 保存助记词到安全存储，更新钱包列表和当前选中钱包。
+  /// [passphrase] 可选 BIP-39 密码短语，非空时保存到安全存储。
   /// 返回新创建的 WalletInfo。
   Future<WalletInfo> addWallet({
     required String name,
     required String mnemonic,
+    String passphrase = '',
   }) async {
     final wallets = await getWallets();
     if (wallets.length >= maxWallets) {
@@ -184,6 +222,9 @@ class WalletService {
 
     await _secureStorage.saveWalletList(wallets);
     await _secureStorage.saveMnemonic(info.id, mnemonic);
+    if (passphrase.isNotEmpty) {
+      await _secureStorage.savePassphrase(info.id, passphrase);
+    }
     await _secureStorage.setCurrentWalletId(info.id);
 
     return info;
@@ -199,6 +240,7 @@ class WalletService {
     wallets.removeWhere((w) => w.id == walletId);
 
     await _secureStorage.deleteMnemonic(walletId);
+    await _secureStorage.deletePassphrase(walletId);
     await _secureStorage.saveWalletList(wallets);
 
     // 如果删除的是当前钱包，切换到第一个（或清空 currentId）
@@ -219,6 +261,7 @@ class WalletService {
     final wallets = await getWallets();
     for (final w in wallets) {
       await _secureStorage.deleteMnemonic(w.id);
+      await _secureStorage.deletePassphrase(w.id);
     }
     await _secureStorage.saveWalletList([]);
     await _secureStorage.setCurrentWalletId('');
@@ -241,5 +284,19 @@ class WalletService {
 
   Future<bool> hasPin() async {
     return await _secureStorage.hasPin();
+  }
+
+  // ─── 密码短语（BIP-39 passphrase） ─────────────────────────
+
+  /// 保存指定钱包的 BIP-39 密码短语
+  Future<void> savePassphrase(String walletId, String passphrase) async {
+    await _secureStorage.savePassphrase(walletId, passphrase);
+  }
+
+  /// 读取当前钱包的密码短语，未设置时返回空字符串
+  Future<String> loadCurrentPassphrase() async {
+    final wallet = await getCurrentWallet();
+    if (wallet == null) return '';
+    return await _secureStorage.readPassphrase(wallet.id) ?? '';
   }
 }

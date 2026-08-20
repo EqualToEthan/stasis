@@ -1,6 +1,6 @@
 import 'package:cardano_dart_types/cardano_dart_types.dart';
 
-import '../models/cold_export.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import 'blockfrost_service.dart';
 
 class TxBuilderService {

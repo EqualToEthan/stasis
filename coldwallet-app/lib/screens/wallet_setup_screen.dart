@@ -20,6 +20,7 @@ class WalletSetupScreen extends StatefulWidget {
 class _WalletSetupScreenState extends State<WalletSetupScreen> {
   final WalletService _walletService = WalletService();
   final TextEditingController _mnemonicController = TextEditingController();
+  final TextEditingController _passphraseController = TextEditingController();
 
   List<WalletInfo> _wallets = [];
   bool _isLoading = true;
@@ -63,9 +64,13 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     final prevWallet = await _walletService.getCurrentWallet();
     await _walletService.switchWallet(wallet.id);
     final m = await _walletService.loadCurrentMnemonic();
+    final passphrase = await _walletService.loadCurrentPassphrase();
     Map<String, String> allAddresses = {};
     if (m != null) {
-      allAddresses = await _walletService.deriveAllAddresses(m);
+      allAddresses = await _walletService.deriveAllAddresses(
+        m,
+        passphrase: passphrase,
+      );
     }
     // 恢复之前选中的钱包
     if (prevWallet != null) {
@@ -153,6 +158,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
 
   void _showImportForm() {
     _mnemonicController.clear();
+    _passphraseController.clear();
     setState(() => _showingImportForm = true);
   }
 
@@ -162,12 +168,17 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
       _showError('助记词无效，请检查拼写和词数');
       return;
     }
+    final passphrase = _passphraseController.text;
     setState(() => _showingImportForm = false);
-    _showNameAndConfirmDialog(mnemonic, isNew: false);
+    _showNameAndConfirmDialog(mnemonic, isNew: false, passphrase: passphrase);
   }
 
   /// 显示命名 + 助记词确认 + PIN 设置对话框
-  void _showNameAndConfirmDialog(String mnemonic, {required bool isNew}) {
+  void _showNameAndConfirmDialog(
+    String mnemonic, {
+    required bool isNew,
+    String passphrase = '',
+  }) {
     final nameController = TextEditingController(
       text: '钱包 ${_wallets.length + 1}',
     );
@@ -199,7 +210,94 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
                 return;
               }
               Navigator.pop(ctx);
-              _showMnemonicConfirm(mnemonic, name: name, isNew: isNew);
+              _showPassphraseDialog(
+                mnemonic,
+                name: name,
+                isNew: isNew,
+                initialPassphrase: passphrase,
+              );
+            },
+            child: const Text('继续'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 显示 BIP-39 密码短语输入对话框
+  ///
+  /// 可选步骤：用户可留空跳过。设置后相同助记词会产生完全不同的地址，
+  /// 必须在助记词备份界面提醒用户一并记录。
+  void _showPassphraseDialog(
+    String mnemonic, {
+    required String name,
+    required bool isNew,
+    String initialPassphrase = '',
+  }) {
+    final passphraseCtrl = TextEditingController(text: initialPassphrase);
+    final confirmCtrl = TextEditingController(text: initialPassphrase);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('BIP-39 密码短语（可选）'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '密码短语与助记词共同决定钱包地址。设置后，相同的助记词会产生完全不同的地址。',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '请务必将密码短语与助记词一起抄写备份，遗忘后无法恢复。',
+                style: TextStyle(color: Colors.orange, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: passphraseCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: '密码短语',
+                  hintText: '留空表示不使用',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: '确认密码短语',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              final pp = passphraseCtrl.text;
+              final confirm = confirmCtrl.text;
+              if (pp != confirm) {
+                _showError('两次输入的密码短语不一致');
+                return;
+              }
+              Navigator.pop(ctx);
+              _showMnemonicConfirm(
+                mnemonic,
+                name: name,
+                isNew: isNew,
+                passphrase: pp,
+              );
             },
             child: const Text('继续'),
           ),
@@ -212,6 +310,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     String mnemonic, {
     required String name,
     required bool isNew,
+    String passphrase = '',
   }) {
     showDialog(
       context: context,
@@ -235,6 +334,28 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              if (passphrase.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.warning_amber, color: Colors.orange, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '已设置密码短语，请务必一并记住！\n遗忘后无法恢复钱包。',
+                          style: TextStyle(color: Colors.orange, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -246,7 +367,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _showPinDialog(mnemonic, name: name);
+              _showPinDialog(mnemonic, name: name, passphrase: passphrase);
             },
             child: const Text('已备份，继续'),
           ),
@@ -255,10 +376,14 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     );
   }
 
-  void _showPinDialog(String mnemonic, {required String name}) {
+  void _showPinDialog(
+    String mnemonic, {
+    required String name,
+    String passphrase = '',
+  }) {
     // 如果已有 PIN，不需要再次设置
     if (_hasPin) {
-      _saveWallet(mnemonic, name: name);
+      _saveWallet(mnemonic, name: name, passphrase: passphrase);
       return;
     }
 
@@ -317,7 +442,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
               }
               Navigator.pop(ctx);
               await _walletService.savePin(pin);
-              await _saveWallet(mnemonic, name: name);
+              await _saveWallet(mnemonic, name: name, passphrase: passphrase);
             },
             child: const Text('保存'),
           ),
@@ -326,9 +451,17 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     );
   }
 
-  Future<void> _saveWallet(String mnemonic, {required String name}) async {
+  Future<void> _saveWallet(
+    String mnemonic, {
+    required String name,
+    String passphrase = '',
+  }) async {
     try {
-      await _walletService.addWallet(name: name, mnemonic: mnemonic);
+      await _walletService.addWallet(
+        name: name,
+        mnemonic: mnemonic,
+        passphrase: passphrase,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -601,6 +734,16 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
               decoration: const InputDecoration(
                 hintText: '输入 12 或 24 个单词，空格分隔',
                 border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _passphraseController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                hintText: 'BIP-39 密码短语（可选）',
+                border: OutlineInputBorder(),
+                helperText: '设置后相同助记词会产生不同地址，请务必记住',
               ),
             ),
             const SizedBox(height: 12),
