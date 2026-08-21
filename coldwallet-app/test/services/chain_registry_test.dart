@@ -24,6 +24,44 @@ void main() {
     });
   });
 
+  group('ChainRegistry.getConfig', () {
+    test('returns config for known cardano chain', () {
+      final config = ChainRegistry.getConfig('cardano-preview');
+      expect(config, isNotNull);
+      expect(config!.chainFamily, 'cardano');
+    });
+
+    test('returns config for known evm chain', () {
+      final config = ChainRegistry.getConfig('evm-97');
+      expect(config, isNotNull);
+      expect(config!.chainFamily, 'evm');
+    });
+
+    test('returns null for unknown chain', () {
+      expect(ChainRegistry.getConfig('unknown-chain'), isNull);
+    });
+  });
+
+  group('ChainRegistry auto-detection flow', () {
+    test('JSON without chainId resolves to registered cardano chain', () {
+      final json = <String, dynamic>{'type': 'unsigned-tx'};
+      final chainId = ChainRegistry.resolveChainId(json);
+      expect(ChainRegistry.getConfig(chainId), isNotNull);
+    });
+
+    test('JSON with known EVM chainId resolves to registered chain', () {
+      final json = <String, dynamic>{'chainId': 'evm-97'};
+      final chainId = ChainRegistry.resolveChainId(json);
+      expect(ChainRegistry.getConfig(chainId), isNotNull);
+    });
+
+    test('JSON with unknown chainId fails getConfig', () {
+      final json = <String, dynamic>{'chainId': 'ethereum-mainnet'};
+      final chainId = ChainRegistry.resolveChainId(json);
+      expect(ChainRegistry.getConfig(chainId), isNull);
+    });
+  });
+
   group('ChainRegistry.mismatchMessage', () {
     test('returns null when chains match', () {
       expect(

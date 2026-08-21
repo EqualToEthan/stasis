@@ -1,14 +1,19 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/wallet_info.dart';
+import '../models/chain_config.dart';
 import '../services/chain_registry.dart';
 import '../services/wallet_service.dart';
 import 'dice_entropy_screen.dart';
 
 /// 钱包管理页面
 ///
-/// 展示所有钱包列表，支持：查看详情/备份助记词、删除钱包、
+/// 展示所有钱包列表，支持：查看详情（多链地址 + Cardano Stake Address + 助记词）、
+/// 每个地址行的二维码导出（Cardano 合并 QR，其他链单地址 QR）、删除钱包、
 /// 新增钱包（生成/掷骰子/导入）。首次进入时引导创建第一个钱包。
 class WalletSetupScreen extends StatefulWidget {
   const WalletSetupScreen({super.key});
@@ -30,6 +35,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
   String? _expandedWalletId;
   Map<String, String>? _expandedAddresses;
   String? _expandedMnemonic;
+  String? _expandedStakeAddress;
 
   @override
   void initState() {
@@ -48,6 +54,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
       _expandedWalletId = null;
       _expandedAddresses = null;
       _expandedMnemonic = null;
+      _expandedStakeAddress = null;
     });
   }
 
@@ -57,6 +64,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
         _expandedWalletId = null;
         _expandedAddresses = null;
         _expandedMnemonic = null;
+        _expandedStakeAddress = null;
       });
       return;
     }
@@ -72,6 +80,19 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
         passphrase: passphrase,
       );
     }
+    // Cardano 链可用时派生 stake address
+    String? stakeAddress;
+    final hasCardano = ChainRegistry.allConfigs().any(
+      (c) => c.chainFamily == 'cardano' && allAddresses[c.chainId] != null,
+    );
+    if (hasCardano && m != null) {
+      try {
+        stakeAddress = await _walletService.deriveStakeAddress(
+          m,
+          passphrase: passphrase,
+        );
+      } catch (_) {}
+    }
     // 恢复之前选中的钱包
     if (prevWallet != null) {
       await _walletService.switchWallet(prevWallet.id);
@@ -81,6 +102,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
       _expandedWalletId = wallet.id;
       _expandedAddresses = allAddresses;
       _expandedMnemonic = m;
+      _expandedStakeAddress = stakeAddress;
     });
   }
 
@@ -662,7 +684,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
                   Text('多链地址', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: 8),
                   for (final config in ChainRegistry.allConfigs())
-                    if (_expandedAddresses![config.chainId] != null)
+                    if (_expandedAddresses![config.chainId] != null) ...[
                       Card(
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(
@@ -675,16 +697,56 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(fontFamily: 'monospace'),
                           ),
-                          trailing: IconButton(
-                            onPressed: () => _copyText(
-                              _expandedAddresses![config.chainId]!,
-                              '${config.name} 地址',
-                            ),
-                            icon: const Icon(Icons.copy, size: 16),
-                            tooltip: '复制地址',
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () => _showAddressQr(
+                                  _expandedAddresses![config.chainId]!,
+                                  config,
+                                ),
+                                icon: const Icon(Icons.qr_code_2, size: 16),
+                                tooltip: '显示二维码',
+                              ),
+                              IconButton(
+                                onPressed: () => _copyText(
+                                  _expandedAddresses![config.chainId]!,
+                                  '${config.name} 地址',
+                                ),
+                                icon: const Icon(Icons.copy, size: 16),
+                                tooltip: '复制地址',
+                              ),
+                            ],
                           ),
                         ),
                       ),
+                      // Cardano 链额外展示 Stake Address
+                      if (config.chainFamily == 'cardano' &&
+                          _expandedStakeAddress != null)
+                        Card(
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            leading: const Icon(Icons.key, size: 20),
+                            title: const Text('Stake Address'),
+                            subtitle: Text(
+                              _truncate(_expandedStakeAddress!),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(fontFamily: 'monospace'),
+                            ),
+                            trailing: IconButton(
+                              onPressed: () => _copyText(
+                                _expandedStakeAddress!,
+                                'Stake Address',
+                              ),
+                              icon: const Icon(Icons.copy, size: 16),
+                              tooltip: '复制 stake address',
+                            ),
+                          ),
+                        ),
+                    ],
                   const Divider(height: 24),
                   Text(
                     '助记词',
@@ -714,6 +776,111 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// 根据链族选择显示合并二维码或单地址二维码。
+  ///
+  /// Cardano 链有 stake address 时显示合并二维码（payment + stake），
+  /// 其他情况显示单地址二维码。
+  void _showAddressQr(String address, ChainConfig config) {
+    if (config.chainFamily == 'cardano' && _expandedStakeAddress != null) {
+      _showCombinedQrDialog(address, _expandedStakeAddress!);
+    } else {
+      _showAddressQrDialog(address, config.name);
+    }
+  }
+
+  /// 显示单地址二维码（EVM 等非 Cardano 链使用）
+  ///
+  /// QrImageView 内部使用 LayoutBuilder，与 AlertDialog 的 IntrinsicWidth
+  /// 不兼容，需用 SizedBox 包裹提供明确尺寸以避免固有尺寸断言异常。
+  /// 需设置 backgroundColor: Colors.white 确保暗色主题下 QR 码对比度。
+  void _showAddressQrDialog(String address, String chainName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('$chainName 地址二维码'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 240,
+              height: 240,
+              child: QrImageView(
+                data: address,
+                version: QrVersions.auto,
+                size: 240,
+                backgroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _truncate(address),
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '观察钱包扫描此二维码导入地址',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 显示合并地址二维码：包含 payment address + stake address
+  ///
+  /// 观察钱包扫码后可一次性导入两个地址。
+  void _showCombinedQrDialog(String paymentAddress, String stakeAddress) {
+    final combinedJson = jsonEncode({
+      'paymentAddress': paymentAddress,
+      'stakeAddress': stakeAddress,
+    });
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('地址二维码'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 240,
+              height: 240,
+              child: QrImageView(
+                data: combinedJson,
+                version: QrVersions.auto,
+                size: 240,
+                backgroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '观察钱包扫描此二维码导入地址',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
+          ),
         ],
       ),
     );

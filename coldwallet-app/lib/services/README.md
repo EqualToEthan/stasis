@@ -71,7 +71,7 @@
 | `allConfigs()` | `List<ChainConfig>` | 获取所有链配置 |
 | `configsForFamily(family)` | `List<ChainConfig>` | 获取指定链族的所有配置 |
 | `resolveChainId(json)` | `String` | 从交易 JSON 解析链 ID，无 chainId 字段视为 Cardano |
-| `mismatchMessage(selectedChainId, scannedChainId)` | `String?` | 链不匹配提示文案，匹配返回 null |
+| `mismatchMessage(selectedChainId, scannedChainId)` | `String?` | 链不匹配提示文案，匹配返回 null。当前 app 代码使用自动检测替代显式链选择，此方法仅作为公共 API 保留 |
 
 ## 依赖关系
 

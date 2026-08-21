@@ -3,8 +3,6 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../services/chain_registry.dart';
 import '../models/wallet_info.dart';
@@ -14,7 +12,7 @@ import 'tx_detail_screen.dart';
 
 /// 冷钱包首页
 ///
-/// 展示钱包选择器、多链地址下拉切换、扫码签名入口、文件导入入口和钱包管理入口。
+/// 展示钱包选择器、扫码签名入口、文件导入入口和钱包管理入口。
 /// 无钱包时引导用户创建第一个钱包。
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,24 +28,13 @@ class _HomeScreenState extends State<HomeScreen> {
   WalletInfo? _currentWallet;
   bool _isLoading = true;
 
-  // 多链地址缓存与下拉选中状态
-  Map<String, String> _allAddresses = {};
-  bool _addressesLoading = true;
-  String? _selectedChainId;
-
-  // Cardano stake address（仅当选中 Cardano 链时加载）
-  String? _stakeAddress;
-
   @override
   void initState() {
     super.initState();
     _loadState();
   }
 
-  /// 加载钱包列表、当前钱包和多链地址并缓存到状态。
-  ///
-  /// 地址在加载后缓存到 [_allAddresses]，下拉切换链时直接读取缓存，
-  /// 避免每次切换都重新派生地址。切换钱包后若选中的链不可用则回退到第一条。
+  /// 加载钱包列表和当前钱包。
   Future<void> _loadState() async {
     final wallets = await _walletService.getWallets();
     final current = await _walletService.getCurrentWallet();
@@ -57,77 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _currentWallet = current;
       _isLoading = false;
     });
-
-    // 加载多链地址并缓存到状态，避免下拉切换时重新派生
-    if (current != null) {
-      setState(() => _addressesLoading = true);
-      try {
-        final addresses = await _loadAllAddresses();
-        final available = ChainRegistry.allConfigs()
-            .where((c) => addresses[c.chainId] != null)
-            .toList();
-        if (!mounted) return;
-        setState(() {
-          _allAddresses = addresses;
-          _addressesLoading = false;
-          // 切换钱包后若当前选中链不存在则回退到第一条
-          if (_selectedChainId == null ||
-              !available.any((c) => c.chainId == _selectedChainId)) {
-            _selectedChainId = available.isNotEmpty
-                ? available.first.chainId
-                : null;
-          }
-        });
-        // Cardano 链选中时加载 stake address
-        await _loadStakeAddressIfNeeded();
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _allAddresses = {};
-          _addressesLoading = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('地址派生失败: $e'), backgroundColor: Colors.red),
-          );
-        }
-      }
-    } else {
-      if (!mounted) return;
-      setState(() {
-        _allAddresses = {};
-        _addressesLoading = false;
-        _selectedChainId = null;
-      });
-    }
   }
 
   bool get _hasWallets => _wallets.isNotEmpty;
-
-  /// 当前选中的链是否为 Cardano
-  bool get _isCardanoSelected {
-    if (_selectedChainId == null) return false;
-    final config = ChainRegistry.allConfigs()
-        .where((c) => c.chainId == _selectedChainId)
-        .firstOrNull;
-    return config?.chainFamily == 'cardano';
-  }
-
-  /// 当选中的链为 Cardano 时，派生并缓存 stake address
-  Future<void> _loadStakeAddressIfNeeded() async {
-    if (!_isCardanoSelected) {
-      if (mounted) setState(() => _stakeAddress = null);
-      return;
-    }
-    try {
-      final mnemonic = await _walletService.loadCurrentMnemonic();
-      if (mnemonic == null || !mounted) return;
-      final addr = await _walletService.deriveStakeAddress(mnemonic);
-      if (mounted) setState(() => _stakeAddress = addr);
-    } catch (_) {
-      if (mounted) setState(() => _stakeAddress = null);
-    }
-  }
 
   void _showWalletPicker() {
     showModalBottomSheet(
@@ -190,23 +109,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildWalletSelector(),
-                  if (_hasWallets) ...[
-                    const SizedBox(height: 16),
-                    _buildMultiChainAddressList(),
-                  ],
                   const SizedBox(height: 24),
                   _buildActionButton(
                     icon: Icons.qr_code_scanner,
                     label: '扫码签名',
                     description: '扫描联网设备上的未签名交易二维码',
-                    onPressed: _hasWallets && _selectedChainId != null
+                    onPressed: _hasWallets
                         ? () async {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ScanTxScreen(
-                                  requiredChainId: _selectedChainId!,
-                                ),
+                                builder: (_) => const ScanTxScreen(),
                               ),
                             );
                             if (mounted) _loadState();
@@ -317,22 +230,12 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final json = jsonDecode(jsonStr) as Map<String, dynamic>;
 
-      // 链联动校验：导入的交易链必须与当前选中链一致
-      if (_selectedChainId == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('当前无可用链，请先创建钱包')));
-        return;
-      }
+      // 从 JSON 自动检测链类型
       final scannedChainId = ChainRegistry.resolveChainId(json);
-      final mismatch = ChainRegistry.mismatchMessage(
-        _selectedChainId!,
-        scannedChainId,
-      );
-      if (mismatch != null) {
+      if (ChainRegistry.getConfig(scannedChainId) == null) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(mismatch)));
+        ).showSnackBar(SnackBar(content: Text('无法识别链类型: $scannedChainId')));
         return;
       }
 
@@ -424,131 +327,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<Map<String, String>> _loadAllAddresses() async {
-    final mnemonic = await _walletService.loadCurrentMnemonic();
-    if (mnemonic == null || mnemonic.isEmpty) return {};
-    return _walletService.deriveAllAddresses(mnemonic);
-  }
-
-  String _truncate(String value, {int head = 12, int tail = 12}) {
-    if (value.length <= head + tail + 3) return value;
-    return '${value.substring(0, head)}...${value.substring(value.length - tail)}';
-  }
-
-  void _copyAddress(String address) {
-    Clipboard.setData(ClipboardData(text: address));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('地址已复制')));
-  }
-
-  /// 构建多链地址下拉选择器。
-  ///
-  /// 通过 [DropdownButtonFormField] 切换链，下方只显示当前选中链的地址卡片。
-  /// 地址数据来自 [_loadState] 缓存的 [_allAddresses]，切换时无需重新派生。
-  Widget _buildMultiChainAddressList() {
-    if (_addressesLoading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    if (_allAddresses.isEmpty) {
-      return const Card(
-        child: Padding(padding: EdgeInsets.all(16), child: Text('暂无地址')),
-      );
-    }
-
-    final availableConfigs = ChainRegistry.allConfigs()
-        .where((c) => _allAddresses[c.chainId] != null)
-        .toList();
-
-    if (availableConfigs.isEmpty) {
-      return const Card(
-        child: Padding(padding: EdgeInsets.all(16), child: Text('暂无地址')),
-      );
-    }
-
-    final selectedConfig = availableConfigs.firstWhere(
-      (c) => c.chainId == _selectedChainId,
-      orElse: () => availableConfigs.first,
-    );
-    final selectedAddress = _allAddresses[selectedConfig.chainId]!;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('多链地址', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: selectedConfig.chainId,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          ),
-          items: availableConfigs.map((config) {
-            return DropdownMenuItem<String>(
-              value: config.chainId,
-              child: Text(config.name),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              setState(() => _selectedChainId = value);
-              _loadStakeAddressIfNeeded();
-            }
-          },
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: ListTile(
-            title: Text(selectedConfig.name),
-            subtitle: Text(
-              _truncate(selectedAddress),
-              style: const TextStyle(fontFamily: 'monospace'),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.copy),
-              tooltip: '复制地址',
-              onPressed: () => _copyAddress(selectedAddress),
-            ),
-          ),
-        ),
-        // Cardano 链选中时显示 stake address
-        if (_isCardanoSelected && _stakeAddress != null) ...[
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.key, size: 20),
-              title: const Text('Stake Address'),
-              subtitle: Text(
-                _truncate(_stakeAddress!),
-                style: const TextStyle(fontFamily: 'monospace'),
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.copy),
-                tooltip: '复制 stake address',
-                onPressed: () => _copyAddress(_stakeAddress!),
-              ),
-            ),
-          ),
-        ],
-        // 所有链都显示地址二维码按钮
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () => _isCardanoSelected && _stakeAddress != null
-              ? _showCombinedQrDialog(selectedAddress, _stakeAddress!)
-              : _showAddressQrDialog(selectedAddress, selectedConfig.name),
-          icon: const Icon(Icons.qr_code_2),
-          label: const Text('显示地址二维码（供观察钱包扫码导入）'),
-        ),
-      ],
-    );
-  }
-
   Widget _buildActionButton({
     required IconData icon,
     required String label,
@@ -575,102 +353,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const Icon(Icons.chevron_right),
-        ],
-      ),
-    );
-  }
-
-  /// 显示单地址二维码（EVM 等非 Cardano 链使用）
-  ///
-  /// QrImageView 内部使用 LayoutBuilder，与 AlertDialog 的 IntrinsicWidth
-  /// 不兼容，需用 SizedBox 包裹提供明确尺寸以避免固有尺寸断言异常。
-  /// 需设置 backgroundColor: Colors.white 确保暗色主题下 QR 码对比度。
-  void _showAddressQrDialog(String address, String chainName) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('$chainName 地址二维码'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 240,
-              height: 240,
-              child: QrImageView(
-                data: address,
-                version: QrVersions.auto,
-                size: 240,
-                backgroundColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _truncate(address),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '观察钱包扫描此二维码导入地址',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('关闭'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 显示合并地址二维码：包含 payment address + stake address
-  ///
-  /// 观察钱包扫码后可一次性导入两个地址。
-  /// QrImageView 内部使用 LayoutBuilder，与 AlertDialog 的 IntrinsicWidth
-  /// 不兼容，需用 SizedBox 包裹提供明确尺寸以避免固有尺寸断言异常。
-  /// 需设置 backgroundColor: Colors.white 确保暗色主题下 QR 码对比度。
-  void _showCombinedQrDialog(String paymentAddress, String stakeAddress) {
-    final combinedJson = jsonEncode({
-      'paymentAddress': paymentAddress,
-      'stakeAddress': stakeAddress,
-    });
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('地址二维码'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 240,
-              height: 240,
-              child: QrImageView(
-                data: combinedJson,
-                version: QrVersions.auto,
-                size: 240,
-                backgroundColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '观察钱包扫描此二维码导入地址',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('关闭'),
-          ),
         ],
       ),
     );
