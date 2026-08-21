@@ -44,7 +44,7 @@ void main() {
     });
 
     testWidgets(
-      'regression: shows pool id input and current delegation when already delegated',
+      'regression: hides pool id input and build button when already delegated',
       (tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -68,10 +68,11 @@ void main() {
         await tester.tap(find.text('Go'));
         await tester.pumpAndSettle();
 
-        // 已委托时仍应显示当前委托信息和 Pool ID 输入框，支持 re-delegation。
+        // 已委托时只显示当前委托信息，不提供输入框、更换按钮或构建按钮。
         expect(find.textContaining('已委托'), findsOneWidget);
-        expect(find.byType(TextField), findsOneWidget);
-        expect(find.text('构建委托交易'), findsOneWidget);
+        expect(find.textContaining('解除当前委托'), findsOneWidget);
+        expect(find.byType(TextField), findsNothing);
+        expect(find.text('构建委托交易'), findsNothing);
       },
     );
 

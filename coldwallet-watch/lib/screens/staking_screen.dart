@@ -430,12 +430,14 @@ class _StakingScreenState extends State<StakingScreen> {
     }
 
     final poolId = _stakeInfo?['pool_id'] as String?;
+    final isDelegated = poolId != null;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 已委托时展示当前委托信息作为提示，但不阻断 re-delegation
-        if (poolId != null) ...[
+    // 已委托时只读展示当前委托信息，不提供更换入口。
+    // 如需更换质押池，必须先在「解除注册」tab 解除当前委托。
+    if (isDelegated) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -454,7 +456,19 @@ class _StakingScreenState extends State<StakingScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          Text(
+            '如需更换质押池，请先在「解除注册」页解除当前委托。',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+          ),
         ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         TextField(
           controller: _poolIdController,
           maxLines: 2,
@@ -466,9 +480,7 @@ class _StakingScreenState extends State<StakingScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          poolId != null
-              ? '如需更换委托池，直接输入新的 Pool ID 即可重新委托。'
-              : '输入目标 Stake Pool 的 bech32 ID。如果 stake key 尚未注册，会自动包含注册操作（需 2 ADA 押金）。',
+          '输入目标 Stake Pool 的 bech32 ID。如果 stake key 尚未注册，会自动包含注册操作（需 2 ADA 押金）。',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: Colors.grey),
