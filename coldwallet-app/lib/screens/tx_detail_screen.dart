@@ -71,6 +71,10 @@ class TxDetailScreen extends StatelessWidget {
     );
   }
 
+  /// 构建 Cardano 交易详情视图。
+  ///
+  /// 展示网络、发送方、接收方、金额、手续费和可选的押金信息。
+  /// deposit 为正数时显示「押金」（注册），负数时显示「退回押金」（解除注册）。
   Widget _buildCardanoDetail(BuildContext context, ColdExport coldExport) {
     final deposit = coldExport.summary.deposit;
     final hasDeposit = deposit != null && deposit != '0';
@@ -115,12 +119,8 @@ class TxDetailScreen extends StatelessWidget {
             if (hasDeposit) ...[
               const SizedBox(height: 12),
               _buildInfoCard(
-                title: isRefund
-                    ? '\u9000\u56de\u62bc\u91d1'
-                    : '\u62bc\u91d1',
-                value: _formatAda(
-                  isRefund ? deposit.substring(1) : deposit,
-                ),
+                title: isRefund ? '\u9000\u56de\u62bc\u91d1' : '\u62bc\u91d1',
+                value: _formatAda(isRefund ? deposit.substring(1) : deposit),
                 icon: isRefund ? Icons.lock_open : Icons.lock,
               ),
             ],
