@@ -123,8 +123,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _navigateAddWallet() async {
-    final result = await Navigator.pushNamed(context, '/add-wallet');
-    if (result == true) _load();
+    await Navigator.pushNamed(context, '/add-wallet');
+    // 始终刷新：用户可能在管理页面添加、删除或重命名钱包
+    _load();
   }
 
   Future<void> _switchWallet(WatchWallet? wallet) async {
