@@ -15,6 +15,7 @@ import 'dice_entropy_screen.dart';
 /// 展示所有钱包列表，支持：查看详情（多链地址 + Cardano Stake Address + 助记词）、
 /// 每个地址行的二维码导出（Cardano 合并 QR，其他链单地址 QR）、删除钱包、
 /// 新增钱包（生成/掷骰子/导入）。首次进入时引导创建第一个钱包。
+/// 助记词显示受 PIN 保护：有 PIN 时需验证通过才能查看，折叠后重置。
 class WalletSetupScreen extends StatefulWidget {
   const WalletSetupScreen({super.key});
 
@@ -36,6 +37,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
   Map<String, String>? _expandedAddresses;
   String? _expandedMnemonic;
   String? _expandedStakeAddress;
+  bool _mnemonicUnlocked = false;
 
   @override
   void initState() {
@@ -55,6 +57,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
       _expandedAddresses = null;
       _expandedMnemonic = null;
       _expandedStakeAddress = null;
+      _mnemonicUnlocked = false;
     });
   }
 
@@ -65,6 +68,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
         _expandedAddresses = null;
         _expandedMnemonic = null;
         _expandedStakeAddress = null;
+        _mnemonicUnlocked = false;
       });
       return;
     }
@@ -103,6 +107,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
       _expandedAddresses = allAddresses;
       _expandedMnemonic = m;
       _expandedStakeAddress = stakeAddress;
+      _mnemonicUnlocked = false;
     });
   }
 
@@ -547,6 +552,69 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     ).showSnackBar(SnackBar(content: Text('$label 已复制')));
   }
 
+  /// 显示 PIN 验证对话框，验证通过后解锁助记词显示。
+  void _showPinVerifyDialog() {
+    final pinController = TextEditingController();
+    bool obscurePin = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('验证 PIN'),
+          content: TextField(
+            controller: pinController,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            obscureText: obscurePin,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 24, letterSpacing: 8),
+            decoration: InputDecoration(
+              labelText: '6 位 PIN',
+              counterText: '',
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  obscurePin ? Icons.visibility : Icons.visibility_off,
+                ),
+                onPressed: () {
+                  setDialogState(() => obscurePin = !obscurePin);
+                },
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final pin = pinController.text.trim();
+                if (pin.length != 6 ||
+                    !RegExp(r'^\d{6}$').hasMatch(pin)) {
+                  _showError('请输入 6 位数字 PIN');
+                  return;
+                }
+                final valid = await _walletService.verifyPin(pin);
+                if (!valid) {
+                  HapticFeedback.mediumImpact();
+                  _showError('PIN 错误');
+                  return;
+                }
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                setState(() => _mnemonicUnlocked = true);
+              },
+              child: const Text('确认'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── UI 构建 ───────────────────────────────────────────────
 
   @override
@@ -754,24 +822,34 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
                       context,
                     ).textTheme.titleSmall?.copyWith(color: Colors.orange),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _expandedMnemonic ?? '未知',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: Colors.orange),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: () {
-                      if (_expandedMnemonic != null) {
-                        _copyText(_expandedMnemonic!, '助记词');
-                        _showError('请立即离线保存助记词');
-                      }
-                    },
-                    icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('复制助记词（谨慎）'),
-                  ),
+                  if (!_hasPin || _mnemonicUnlocked) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _expandedMnemonic ?? '未知',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.orange),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () {
+                        if (_expandedMnemonic != null) {
+                          _copyText(_expandedMnemonic!, '助记词');
+                          _showError('请立即离线保存助记词');
+                        }
+                      },
+                      icon: const Icon(Icons.copy, size: 16),
+                      label: const Text('复制助记词（谨慎）'),
+                    ),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: _showPinVerifyDialog,
+                        icon: const Icon(Icons.lock_outline, size: 16),
+                        label: const Text('输入 PIN 查看助记词'),
+                      ),
+                    ),
                 ],
               ),
             ),
