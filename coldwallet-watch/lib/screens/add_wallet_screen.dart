@@ -2,12 +2,15 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../models/watch_wallet.dart';
 import '../services/storage_service.dart';
 import '../services/wallet_service.dart';
 import '../widgets/qr_scanner.dart';
 
-/// 添加只读钱包页面
+/// 钱包管理页面
 ///
+/// 上方展示已有钱包列表（支持重命名和删除），
+/// 下方提供添加新只读钱包的表单。
 /// 用户选择链族（Cardano / EVM），输入钱包名称和地址（支持 QR 扫描），
 /// 验证地址格式后保存到本地存储。
 /// Cardano 链支持 QR 扫描合并地址：`{"paymentAddress": "...", "stakeAddress": "..."}`。
@@ -37,6 +40,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
   bool _initialized = false;
   bool _saving = false;
   bool _showingScanner = false;
+  List<WatchWallet> _wallets = [];
 
   // 链选择状态：null 表示尚未选择（等待扫码自动检测或手动选择）
   String? _chainFamily;
@@ -51,8 +55,15 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
   Future<void> _initService() async {
     final storage = await StorageService.create();
     _walletService = WalletService(storage);
+    await _loadWallets();
     if (!mounted) return;
     setState(() => _initialized = true);
+  }
+
+  Future<void> _loadWallets() async {
+    final wallets = await _walletService.getWallets();
+    if (!mounted) return;
+    setState(() => _wallets = wallets);
   }
 
   /// 处理 QR 扫描结果
@@ -168,6 +179,91 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
 
+  /// 显示重命名对话框
+  ///
+  /// 预填当前名称，校验非空、不超 20 字符、不与其它钱包重名后保存。
+  void _showRenameDialog(WatchWallet wallet) {
+    final nameController = TextEditingController(text: wallet.name);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重命名钱包'),
+        content: TextField(
+          controller: nameController,
+          maxLength: 20,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '钱包名称',
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              if (newName.isEmpty) {
+                _showError('请输入钱包名称');
+                return;
+              }
+              if (_wallets.any(
+                (w) => w.id != wallet.id && w.name == newName,
+              )) {
+                _showError('该名称已存在');
+                return;
+              }
+              Navigator.pop(ctx);
+              await _walletService.updateWallet(
+                wallet.copyWith(name: newName),
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已重命名为「$newName」')),
+                );
+              }
+              await _loadWallets();
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 显示删除确认对话框
+  Future<void> _showDeleteConfirm(WatchWallet wallet) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('删除「${wallet.name}」'),
+        content: const Text('确定要删除此只读钱包吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _walletService.deleteWallet(wallet.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('钱包「${wallet.name}」已删除')),
+        );
+      }
+      await _loadWallets();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_showingScanner) {
@@ -184,11 +280,58 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('添加只读钱包')),
+      appBar: AppBar(title: const Text('钱包管理')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── 已有钱包列表 ──
+            if (_wallets.isNotEmpty) ...[
+              Text('已有钱包', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              for (final wallet in _wallets)
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.account_balance_wallet),
+                    title: Text(wallet.name),
+                    subtitle: Text(
+                      wallet.address,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(fontFamily: 'monospace'),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 20),
+                          tooltip: '重命名',
+                          onPressed: () => _showRenameDialog(wallet),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          tooltip: '删除',
+                          onPressed: () => _showDeleteConfirm(wallet),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+            ],
+            // ── 添加新钱包表单 ──
+            Text('添加新钱包', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 16),
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(

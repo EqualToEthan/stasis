@@ -8,7 +8,7 @@
 |------|--------|----------|
 | secure_storage_service.dart | SecureStorageService | 安全存储，通过 Android Keystore 加密存储助记词、PIN（PBKDF2 哈希）、BIP-39 密码短语和钱包列表 |
 | transaction_service.dart | TransactionService | 交易签名，支持 Cardano（CBOR）和 EVM（RLP）多链签名路由 |
-| wallet_service.dart | WalletService | 钱包服务，助记词生成/验证、HD 钱包创建（支持 BIP-39 密码短语）、多链地址派生、多钱包管理和 PIN 管理 |
+| wallet_service.dart | WalletService | 钱包服务，助记词生成/验证、HD 钱包创建（支持 BIP-39 密码短语）、多链地址派生、多钱包管理（增删改查 + 重命名）和 PIN 管理 |
 | chain_registry.dart | ChainRegistry | 链注册中心，管理链配置、适配器查找与交易链解析（扫码/导入链联动校验） |
 | adapters/chain_adapter.dart | ChainAdapter | 链适配器抽象接口，定义地址派生、交易解析和签名方法 |
 | adapters/cardano_adapter.dart | CardanoAdapter | Cardano 适配器，CIP-1852 地址派生 + Ed25519 签名（含质押交易 stake key witness，支持 BIP-39 密码短语） |
@@ -129,4 +129,5 @@ screens/ → TransactionService → WalletService → SecureStorageService（签
 | 修改 Cardano 签名逻辑 | adapters/cardano_adapter.dart — 修改 signTransaction 方法 |
 | 修改地址派生路径 | wallet_service.dart — 修改 deriveAddress 中的 addressIndex |
 | 修改最大钱包数量限制 | wallet_service.dart — 修改 maxWallets 常量 |
+| 重命名钱包 | wallet_service.dart — 调用 renameWallet 方法（UI 在 wallet_setup_screen.dart） |
 | 添加工厂重置功能 | wallet_service.dart — 使用 factoryReset 方法 |

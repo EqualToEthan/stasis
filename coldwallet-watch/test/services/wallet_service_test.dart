@@ -244,4 +244,38 @@ void main() {
       expect(json.containsKey('chainId'), isFalse);
     });
   });
+
+  group('WalletService.updateWallet', () {
+    test('renames wallet via copyWith', () async {
+      final storage = FakeStorageService();
+      final service = WalletService(storage);
+      final wallet = await service.addWallet(
+        name: 'Original',
+        address: 'addr_test1abc',
+        chainFamily: 'cardano',
+        network: 'preview',
+      );
+      await service.updateWallet(wallet.copyWith(name: 'Renamed'));
+      final wallets = await service.getWallets();
+      expect(wallets.length, 1);
+      expect(wallets.first.name, 'Renamed');
+      expect(wallets.first.id, wallet.id);
+    });
+
+    test('does nothing when wallet id not found', () async {
+      final storage = FakeStorageService();
+      final service = WalletService(storage);
+      final ghost = WatchWallet(
+        id: 'nonexistent',
+        name: 'Ghost',
+        address: 'addr_test1abc',
+        chainFamily: 'cardano',
+        network: 'preview',
+        createdAt: DateTime.now(),
+      );
+      await service.updateWallet(ghost);
+      final wallets = await service.getWallets();
+      expect(wallets, isEmpty);
+    });
+  });
 }

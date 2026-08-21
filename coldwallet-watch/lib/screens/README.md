@@ -6,7 +6,7 @@
 
 | 文件 | 主要类 | 功能说明 |
 |------|--------|----------|
-| add_wallet_screen.dart | AddWalletScreen | 添加只读钱包，链类型初始无预选（由扫码自动检测或手动选择），支持 Cardano / EVM，EVM 支持选择具体 chainId |
+| add_wallet_screen.dart | AddWalletScreen | 钱包管理页面，上方展示已有钱包列表（支持重命名和删除），下方提供添加新只读钱包的表单。链类型初始无预选（由扫码自动检测或手动选择），支持 Cardano / EVM，EVM 支持选择具体 chainId |
 | export_tx_screen.dart | ExportTxScreen | 导出未签名交易，提供二维码、JSON 文本和文件三种导出方式 |
 | home_screen.dart | HomeScreen | 首页，展示钱包选择器、地址（带链族徽章）、余额（Cardano Blockfrost / EVM 暂不支持）、发送/收款/质押入口和资产列表；错误时保留 AppBar，错误内嵌显示 |
 | import_signed_screen.dart | ImportSignedScreen | 导入已签名交易，进入后先让用户选择扫码/文件/粘贴 JSON 三种方式，解析 ColdImport 后弹出确认对话框展示 TxHash 和 TxCbor 摘要，用户确认后才提交到链上 |
@@ -26,7 +26,7 @@
 ## 页面跳转关系
 
 ```
-HomeScreen → AddWalletScreen（添加钱包）
+HomeScreen → AddWalletScreen（钱包管理 + 添加）
 HomeScreen → SendScreen → ExportTxScreen → ImportSignedScreen（完整发送流程）
 HomeScreen → ReceiveScreen（收款）
 HomeScreen → StakingScreen → ExportTxScreen → ImportSignedScreen（质押流程）
@@ -42,6 +42,7 @@ HomeScreen → SettingsScreen（设置）
 | 修改发送页面的表单字段 | send_screen.dart — 修改 build 方法中的 TextField |
 | 添加新的交易导出方式 | export_tx_screen.dart — 添加新的按钮和处理函数 |
 | 修改添加钱包的链选项 | add_wallet_screen.dart — 修改 _evmChainOptions 常量或链族下拉 items |
+| 修改重命名校验逻辑 | add_wallet_screen.dart — 修改 _showRenameDialog 中的非空和重名校验 |
 | 修改地址验证规则 | add_wallet_screen.dart — 修改 _save 方法中的校验逻辑（实际校验在 WalletService） |
 | 修改设置页面选项 | settings_screen.dart — 在 build 方法中添加新的设置项 |
 | 修改已委托状态下的委托面板 | staking_screen.dart — 修改 _buildDelegatePanel 中 poolId 判断逻辑 |

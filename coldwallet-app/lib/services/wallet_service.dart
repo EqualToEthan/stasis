@@ -254,6 +254,17 @@ class WalletService {
     }
   }
 
+  // ─── 重命名 ───────────────────────────────────────────────
+
+  /// 重命名钱包（仅修改 WalletInfo 元数据，不触碰助记词）
+  Future<void> renameWallet(String walletId, String newName) async {
+    final wallets = await getWallets();
+    final index = wallets.indexWhere((w) => w.id == walletId);
+    if (index < 0) throw StateError('钱包不存在');
+    wallets[index] = wallets[index].copyWith(name: newName);
+    await _secureStorage.saveWalletList(wallets);
+  }
+
   // ─── 重置所有 ───────────────────────────────────────────────
 
   /// 清除所有钱包数据（PIN 保留）

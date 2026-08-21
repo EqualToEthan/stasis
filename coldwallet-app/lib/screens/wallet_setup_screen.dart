@@ -13,8 +13,8 @@ import 'dice_entropy_screen.dart';
 /// 钱包管理页面
 ///
 /// 展示所有钱包列表，支持：查看详情（多链地址 + Cardano Stake Address + 助记词）、
-/// 每个地址行的二维码导出（Cardano 合并 QR，其他链单地址 QR）、删除钱包、
-/// 新增钱包（生成/掷骰子/导入）。首次进入时引导创建第一个钱包。
+/// 每个地址行的二维码导出（Cardano 合并 QR，其他链单地址 QR）、重命名钱包、
+/// 删除钱包、新增钱包（生成/掷骰子/导入）。首次进入时引导创建第一个钱包。
 /// 助记词显示受 PIN 保护：有 PIN 时需验证通过才能查看，折叠后重置。
 class WalletSetupScreen extends StatefulWidget {
   const WalletSetupScreen({super.key});
@@ -534,6 +534,54 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     }
   }
 
+  /// 显示重命名对话框
+  ///
+  /// 预填当前名称，校验非空、不超 20 字符、不与其它钱包重名后保存。
+  void _showRenameDialog(WalletInfo wallet) {
+    final nameController = TextEditingController(text: wallet.name);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重命名钱包'),
+        content: TextField(
+          controller: nameController,
+          maxLength: 20,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: '钱包名称', counterText: ''),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              if (newName.isEmpty) {
+                _showError('请输入钱包名称');
+                return;
+              }
+              if (_wallets.any((w) => w.id != wallet.id && w.name == newName)) {
+                _showError('该名称已存在');
+                return;
+              }
+              Navigator.pop(ctx);
+              await _walletService.renameWallet(wallet.id, newName);
+              if (mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('已重命名为「$newName」')));
+              }
+              await _loadState();
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -728,6 +776,11 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  tooltip: '重命名',
+                  onPressed: () => _showRenameDialog(wallet),
+                ),
                 IconButton(
                   icon: const Icon(
                     Icons.delete_outline,

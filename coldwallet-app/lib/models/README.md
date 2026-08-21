@@ -9,7 +9,7 @@
 | certificate.dart | Certificate, CertificateType | Cardano 质押证书模型，描述注册/委托/解除注册操作 |
 | cold_export.dart | ColdExport, TxSummary, AssetAmount | Cardano 联网端导出的未签名交易数据，包含 CBOR、摘要、资产列表和质押字段 |
 | cold_import.dart | ColdImport | Cardano 离线签名后导出的已签名交易数据，包含 CBOR 和交易哈希 |
-| wallet_info.dart | WalletInfo, WalletListCodec | 钱包元数据模型（ID、名称、创建时间），与助记词分离存储 |
+| wallet_info.dart | WalletInfo, WalletListCodec | 钱包元数据模型（ID、名称、创建时间），与助记词分离存储。支持 copyWith 用于重命名 |
 | chain_config.dart | ChainConfig | 链配置模型，描述链 ID、链族、名称、网络和 EVM chain ID |
 | sign_result.dart | SignResult | 通用签名结果，包含已签名交易 hex 和交易哈希 |
 | eth_cold_export.dart | EthColdExport, EvmTxSummary | EVM 链未签名交易数据，包含 RLP hex、chainId 和摘要 |

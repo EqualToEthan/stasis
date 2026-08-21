@@ -12,7 +12,7 @@
 | home_screen.dart | HomeScreen | 首页，钱包选择器和操作入口（扫码签名、文件导入、钱包管理）。扫码/导入时从 JSON 自动检测链类型，无需显式链选择器 |
 | scan_tx_screen.dart | ScanTxScreen | 扫描交易二维码，从 JSON 自动检测链类型并校验是否为已注册链，通过后跳转交易详情页 |
 | tx_detail_screen.dart | TxDetailScreen | 交易详情，根据链类型展示 Cardano 或 EVM 交易摘要；Cardano 质押交易额外显示押金信息（正数=注册押金，负数=退回押金） |
-| wallet_setup_screen.dart | WalletSetupScreen | 钱包管理，支持创建/掷骰子/导入钱包，创建流程包含命名 → BIP-39 密码短语（可选）→ 助记词备份 → PIN 设置。展开视图展示多链地址（每行含 QR 和复制按钮）、Cardano Stake Address、助记词（受 PIN 保护，验证通过后显示，折叠后重置）和删除 |
+| wallet_setup_screen.dart | WalletSetupScreen | 钱包管理，支持创建/掷骰子/导入钱包，创建流程包含命名 → BIP-39 密码短语（可选）→ 助记词备份 → PIN 设置。展开视图展示多链地址（每行含 QR 和复制按钮）、Cardano Stake Address、助记词（受 PIN 保护，验证通过后显示，折叠后重置）。每个卡片支持重命名和删除 |
 
 ## 依赖关系
 
@@ -38,6 +38,7 @@ HomeScreen（文件导入）→ TxDetailScreen → ConfirmSignScreen → ExportS
 | 修改多链地址展示逻辑 | wallet_setup_screen.dart — 修改 _buildWalletCard 中的展开视图 |
 | 修改地址二维码展示逻辑 | wallet_setup_screen.dart — Cardano 链修改 _showCombinedQrDialog，EVM 链修改 _showAddressQrDialog，链选择逻辑在 _showAddressQr |
 | 添加新的钱包创建方式 | wallet_setup_screen.dart — 在 _showAddWalletSheet 中添加选项 |
+| 修改钱包重命名逻辑 | wallet_setup_screen.dart — 修改 _showRenameDialog 中的校验和调用逻辑 |
 | 修改 BIP-39 密码短语输入 | wallet_setup_screen.dart — 创建流程修改 _showPassphraseDialog，导入流程修改 _buildImportForm 中的 passphrase TextField |
 | 修改交易详情的显示字段 | tx_detail_screen.dart — 修改 _buildInfoCard 调用 |
 | 添加新链类型的详情展示 | tx_detail_screen.dart — 在 _buildSummary 中添加链类型分支 |

@@ -32,6 +32,15 @@ class WalletInfo {
     return {'id': id, 'name': name, 'createdAt': createdAt.toIso8601String()};
   }
 
+  /// 创建副本并替换指定字段
+  WalletInfo copyWith({String? id, String? name, DateTime? createdAt}) {
+    return WalletInfo(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   /// 生成 16 字符随机 ID（64 bits 足够 5 个钱包去重）
   static String _generateId() {
     final random = Random.secure();
