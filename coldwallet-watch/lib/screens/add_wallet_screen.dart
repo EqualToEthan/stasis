@@ -52,6 +52,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     _initService();
   }
 
+  /// 初始化存储服务和钱包服务，加载已有钱包列表。
   Future<void> _initService() async {
     final storage = await StorageService.create();
     _walletService = WalletService(storage);
@@ -60,6 +61,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     setState(() => _initialized = true);
   }
 
+  /// 从 WalletService 重新加载钱包列表并刷新 UI。
   Future<void> _loadWallets() async {
     final wallets = await _walletService.getWallets();
     if (!mounted) return;
@@ -193,10 +195,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
           controller: nameController,
           maxLength: 20,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: '钱包名称',
-            counterText: '',
-          ),
+          decoration: const InputDecoration(labelText: '钱包名称', counterText: ''),
         ),
         actions: [
           TextButton(
@@ -210,20 +209,16 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                 _showError('请输入钱包名称');
                 return;
               }
-              if (_wallets.any(
-                (w) => w.id != wallet.id && w.name == newName,
-              )) {
+              if (_wallets.any((w) => w.id != wallet.id && w.name == newName)) {
                 _showError('该名称已存在');
                 return;
               }
               Navigator.pop(ctx);
-              await _walletService.updateWallet(
-                wallet.copyWith(name: newName),
-              );
+              await _walletService.updateWallet(wallet.copyWith(name: newName));
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('已重命名为「$newName」')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('已重命名为「$newName」')));
               }
               await _loadWallets();
             },
@@ -256,9 +251,9 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     if (confirmed == true) {
       await _walletService.deleteWallet(wallet.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('钱包「${wallet.name}」已删除')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('钱包「${wallet.name}」已删除')));
       }
       await _loadWallets();
     }
@@ -299,10 +294,9 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                       wallet.address,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(fontFamily: 'monospace'),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
