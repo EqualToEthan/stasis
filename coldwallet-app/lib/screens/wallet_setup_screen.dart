@@ -200,7 +200,10 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     _showNameAndConfirmDialog(mnemonic, isNew: false, passphrase: passphrase);
   }
 
-  /// 显示命名 + 助记词确认 + PIN 设置对话框
+  /// 显示命名对话框，然后根据 [isNew] 决定后续流程：
+  ///
+  /// - isNew=true（新建/掷骰子）：密码短语对话框 → 助记词确认 → PIN
+  /// - isNew=false（导入）：跳过密码短语（已在导入表单收集）→ 助记词确认 → PIN
   void _showNameAndConfirmDialog(
     String mnemonic, {
     required bool isNew,
@@ -237,12 +240,22 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
                 return;
               }
               Navigator.pop(ctx);
-              _showPassphraseDialog(
-                mnemonic,
-                name: name,
-                isNew: isNew,
-                initialPassphrase: passphrase,
-              );
+              if (isNew) {
+                // 新建/掷骰子流程：密码短语尚未输入，显示密码短语对话框
+                _showPassphraseDialog(
+                  mnemonic,
+                  name: name,
+                  isNew: isNew,
+                );
+              } else {
+                // 导入流程：密码短语已在导入表单中输入，直接进入助记词确认
+                _showMnemonicConfirm(
+                  mnemonic,
+                  name: name,
+                  isNew: isNew,
+                  passphrase: passphrase,
+                );
+              }
             },
             child: const Text('继续'),
           ),
