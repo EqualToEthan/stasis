@@ -116,6 +116,36 @@ void main() {
       expect(roundtripped.summary.deposit, '2000000');
     });
 
+    test('toJson roundtrip preserves negative deposit (deregistration)', () {
+      final original = {
+        'version': 1,
+        'type': 'unsigned-tx',
+        'network': 'preview',
+        'txCbor': 'aabbcc',
+        'summary': {
+          'fromAddress': 'addr_test1...',
+          'toAddress': 'addr_test1...',
+          'assets': [
+            {'unit': 'lovelace', 'quantity': '0'},
+          ],
+          'fee': '180000',
+          'deposit': '-2000000',
+        },
+        'certificates': [
+          {'type': 'stakeDeregistration', 'stakeCredential': 'cred123'},
+        ],
+        'stakeKeyPath': "m/1852'/1815'/0'/2/0",
+      };
+      final export = ColdExport.fromJson(original);
+      final roundtripped = ColdExport.fromJson(export.toJson());
+
+      expect(roundtripped.summary.deposit, '-2000000');
+      expect(
+        roundtripped.certificates![0].type,
+        CertificateType.stakeDeregistration,
+      );
+    });
+
     test('toJson omits null staking fields and deposit', () {
       final json = {
         'version': 1,

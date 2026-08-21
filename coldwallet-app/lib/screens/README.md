@@ -11,7 +11,7 @@
 | export_signed_screen.dart | ExportSignedScreen | 已签名交易导出，展示交易哈希、二维码，支持复制和文件导出 |
 | home_screen.dart | HomeScreen | 首页，钱包选择器和操作入口（扫码签名、文件导入、钱包管理）。扫码/导入时从 JSON 自动检测链类型，无需显式链选择器 |
 | scan_tx_screen.dart | ScanTxScreen | 扫描交易二维码，从 JSON 自动检测链类型并校验是否为已注册链，通过后跳转交易详情页 |
-| tx_detail_screen.dart | TxDetailScreen | 交易详情，根据链类型展示 Cardano 或 EVM 交易摘要；Cardano 质押注册交易额外显示 2 ADA 押金 |
+| tx_detail_screen.dart | TxDetailScreen | 交易详情，根据链类型展示 Cardano 或 EVM 交易摘要；Cardano 质押交易额外显示押金信息（正数=注册押金，负数=退回押金） |
 | wallet_setup_screen.dart | WalletSetupScreen | 钱包管理，支持创建/掷骰子/导入钱包，创建流程包含命名 → BIP-39 密码短语（可选）→ 助记词备份 → PIN 设置。展开视图展示多链地址（每行含 QR 和复制按钮）、Cardano Stake Address、助记词（受 PIN 保护，验证通过后显示，折叠后重置）和删除 |
 
 ## 依赖关系

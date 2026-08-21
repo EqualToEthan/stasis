@@ -77,7 +77,7 @@
 | `toAddress` | `String` | 是 | 接收方 bech32 地址 |
 | `assets` | `AssetAmount[]` | 是 | 转账资产列表（至少 1 项） |
 | `fee` | `String` | 是 | 手续费（lovelace 字符串） |
-| `deposit` | `String` | 否 | 质押押金（lovelace 字符串）。首次 stake registration 时为 `2000000`，其他情况省略 |
+| `deposit` | `String` | 否 | 质押押金（lovelace 字符串）。首次 stake registration 时为 `2000000`，stake deregistration 时为 `-2000000`（退回押金），其他情况省略 |
 
 ### AssetAmount — 单个资产
 

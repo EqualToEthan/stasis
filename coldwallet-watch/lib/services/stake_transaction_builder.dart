@@ -173,6 +173,8 @@ class StakeTransactionBuilder {
       extraCost: BigInt.zero,
       // 退还 deposit 2 ADA
       extraIncome: BigInt.from(stakeDepositLovelace),
+      // 负数 deposit 表示退还押金（冷钱包端显示「退回押金」）
+      deposit: '-$stakeDepositLovelace',
       exportCerts: [
         proto_cert.Certificate(
           type: proto_cert.CertificateType.stakeDeregistration,

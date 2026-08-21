@@ -69,15 +69,15 @@ class ColdExport {
 /// 交易摘要，供冷钱包用户确认交易内容
 ///
 /// 包含发送方、接收方、资产列表、手续费和可选的质押押金。
-/// [deposit] 仅在首次 stake registration 时为正数（lovelace 字符串），
-/// 表示除手续费外还需锁定的 2 ADA 押金；其他情况为 null。
+/// [deposit] 正数表示首次 stake registration 需锁定的 2 ADA 押金，
+/// 负数表示 stake deregistration 时退还的 2 ADA 押金，其他情况为 null。
 class TxSummary {
   final String fromAddress;
   final String toAddress;
   final List<AssetAmount> assets;
   final String fee;
 
-  /// 质押押金（lovelace 字符串），首次注册时存在，否则为 null
+  /// 质押押金（lovelace 字符串）。正数=注册锁定，负数=解除退还，null=无变动
   final String? deposit;
 
   const TxSummary({

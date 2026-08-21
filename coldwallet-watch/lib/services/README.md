@@ -9,7 +9,7 @@
 | asset_service.dart | AssetService | 资产查询，通过 Blockfrost 获取地址余额并结合用户启用配置返回资产列表 |
 | blockfrost_service.dart | BlockfrostService, BlockfrostEndpoint | Blockfrost API 封装，提供 UTxO、余额、区块、协议参数查询和交易提交 |
 | storage_service.dart | StorageService | 本地存储，SharedPreferences 存钱包列表，SecureStorage 存 API Key |
-| stake_transaction_builder.dart | StakeTransactionBuilder | 质押交易构建，支持委托、提取奖励、解除注册三种操作，迭代计算手续费（含 payment + stake witness 占位），首次注册时 summary 含 2 ADA 押金 |
+| stake_transaction_builder.dart | StakeTransactionBuilder | 质押交易构建，支持委托、提取奖励、解除注册三种操作，迭代计算手续费（含 payment + stake witness 占位），首次注册时 summary deposit 为正数（2 ADA），解除注册时为负数（退回 2 ADA） |
 | tx_builder_service.dart | TxBuilderService | 交易构建，使用 cardano_dart_types 构建 ADA 转账的未签名交易，迭代计算手续费（含 payment witness 占位） |
 | wallet_service.dart | WalletService | 钱包管理，提供只读钱包的增删改查、当前钱包切换、多链地址格式验证和链族自动检测 |
 
@@ -53,7 +53,7 @@
 |------|--------|------|
 | `buildDelegate(fromAddress, stakeAddress, poolIdBech32, network, isStakeRegistered)` | `Future<ColdExport>` | 构建委托交易（自动注册 stake key + 委托） |
 | `buildWithdrawReward(fromAddress, stakeAddress, withdrawableAmount, network)` | `Future<ColdExport>` | 构建提取奖励交易 |
-| `buildDeregister(fromAddress, stakeAddress, network)` | `Future<ColdExport>` | 构建解除 stake key 注册交易 |
+| `buildDeregister(fromAddress, stakeAddress, network)` | `Future<ColdExport>` | 构建解除 stake key 注册交易，deposit 为负数表示退回押金 |
 
 ### TxBuilderService
 

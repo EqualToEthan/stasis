@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:cardano_dart_types/cardano_dart_types.dart';
 import 'package:coldwallet_protocol/coldwallet_protocol.dart'
     hide Certificate, CertificateType;
+import 'package:coldwallet_protocol/cardano/certificate.dart'
+    as proto_cert;
 import 'package:coldwallet_watch/services/blockfrost_service.dart';
 import 'package:coldwallet_watch/services/stake_transaction_builder.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -153,6 +155,31 @@ void main() {
       );
 
       expect(export.summary.deposit, isNull);
+    });
+
+    test('deregister includes negative deposit for refund', () async {
+      final paymentCred = _randomBytes(28);
+      final stakeCred = _randomBytes(28);
+      final fromAddress = _testnetPaymentAddress(paymentCred, stakeCred);
+      final stakeAddress = _testnetStakeAddress(stakeCred);
+
+      final builder = StakeTransactionBuilder(_MockBlockfrost());
+      final export = await builder.buildDeregister(
+        fromAddress: fromAddress,
+        stakeAddress: stakeAddress,
+        network: 'preview',
+      );
+
+      expect(
+        export.summary.deposit,
+        '-2000000',
+        reason: '解除注册应标注负数 deposit 表示退回 2 ADA',
+      );
+      expect(export.certificates, isNotNull);
+      expect(
+        export.certificates!.first.type,
+        proto_cert.CertificateType.stakeDeregistration,
+      );
     });
   });
 }

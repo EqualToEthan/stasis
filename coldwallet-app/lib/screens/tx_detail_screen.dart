@@ -72,6 +72,10 @@ class TxDetailScreen extends StatelessWidget {
   }
 
   Widget _buildCardanoDetail(BuildContext context, ColdExport coldExport) {
+    final deposit = coldExport.summary.deposit;
+    final hasDeposit = deposit != null && deposit != '0';
+    final isRefund = hasDeposit && deposit.startsWith('-');
+
     return Scaffold(
       appBar: AppBar(title: const Text('\u4ea4\u6613\u8be6\u60c5')),
       body: Padding(
@@ -108,13 +112,16 @@ class TxDetailScreen extends StatelessWidget {
               value: _formatAda(coldExport.summary.fee),
               icon: Icons.receipt,
             ),
-            if (coldExport.summary.deposit != null &&
-                coldExport.summary.deposit != '0') ...[
+            if (hasDeposit) ...[
               const SizedBox(height: 12),
               _buildInfoCard(
-                title: '\u62bc\u91d1',
-                value: _formatAda(coldExport.summary.deposit!),
-                icon: Icons.lock,
+                title: isRefund
+                    ? '\u9000\u56de\u62bc\u91d1'
+                    : '\u62bc\u91d1',
+                value: _formatAda(
+                  isRefund ? deposit.substring(1) : deposit,
+                ),
+                icon: isRefund ? Icons.lock_open : Icons.lock,
               ),
             ],
             const Spacer(),
