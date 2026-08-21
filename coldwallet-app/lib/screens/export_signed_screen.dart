@@ -1,13 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 /// 已签名交易导出页面
 ///
-/// 展示签名后的交易哈希、完整 CBOR 二维码，并提供复制功能。
-/// 如果交易数据超过二维码容量，会提示用户改用复制方式传输。
+/// 展示签名后的交易哈希、完整 CBOR 二维码，并提供复制和文件导出功能。
+/// 如果交易数据超过二维码容量，会提示用户改用复制或文件导出方式传输。
 class ExportSignedScreen extends StatelessWidget {
   final Map<String, dynamic> signedJson;
 
@@ -25,6 +27,31 @@ class ExportSignedScreen extends StatelessWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('已复制完整签名数据')));
+  }
+
+  /// 将已签名交易 JSON 导出到文件
+  ///
+  /// 使用 path_provider 获取存储目录，将签名数据写入 JSON 文件。
+  /// Android 优先使用外部存储目录（用户可通过文件管理器访问），
+  /// 其他平台使用应用文档目录。导出后显示文件路径提示。
+  Future<void> _exportToFile(BuildContext context) async {
+    Directory? dir;
+    if (Platform.isAndroid) {
+      dir = await getExternalStorageDirectory();
+    }
+    dir ??= await getApplicationDocumentsDirectory();
+
+    final fileName = 'signed_tx_${DateTime.now().millisecondsSinceEpoch}.json';
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsString(_payload);
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已导出: ${file.path}'),
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 
   void _copyTxHash(BuildContext context) {
@@ -124,7 +151,7 @@ class ExportSignedScreen extends StatelessWidget {
                   children: [
                     Icon(Icons.warning_amber, color: Colors.orange),
                     SizedBox(width: 12),
-                    Expanded(child: Text('交易数据较大，超出了二维码容量，请使用复制功能传输。')),
+                    Expanded(child: Text('交易数据较大，超出了二维码容量，请使用复制或文件导出功能传输。')),
                   ],
                 ),
               ),
@@ -134,6 +161,12 @@ class ExportSignedScreen extends StatelessWidget {
               onPressed: () => _copyPayload(context),
               icon: const Icon(Icons.copy),
               label: const Text('复制完整签名数据'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _exportToFile(context),
+              icon: const Icon(Icons.file_download),
+              label: const Text('导出文件'),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
