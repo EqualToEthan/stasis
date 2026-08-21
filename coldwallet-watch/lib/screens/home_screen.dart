@@ -68,6 +68,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadBalances(WatchWallet wallet) async {
+    // EVM 链暂不支持余额查询
+    if (wallet.isEvm) {
+      if (!mounted) return;
+      setState(() {
+        _assets = [];
+        _loading = false;
+        _error = null;
+      });
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final storage = await StorageService.create();
@@ -157,8 +168,42 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBody() {
     if (_currentWallet == null) return _buildEmptyState();
-    if (_error != null) return _buildError(_error!);
     final wallet = _currentWallet!;
+
+    // 错误时保留顶部 AppBar（钱包选择器 + 设置），错误内嵌显示
+    if (_error != null) {
+      return Column(
+        children: [
+          _buildAppBar(wallet),
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        OutlinedButton(
+                          onPressed: _navigateSettings,
+                          child: const Text('去设置'),
+                        ),
+                        const SizedBox(width: 16),
+                        FilledButton(onPressed: _load, child: const Text('重试')),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     final adaBalance = _assets
         .where((a) => a.isAda)
         .map((a) => _formatAda(a.quantity))
@@ -177,10 +222,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 24),
-                  _buildAddressRow(wallet.address),
+                  _buildAddressRow(wallet),
                   const SizedBox(height: 24),
-                  if (adaBalance != null) _buildMainBalance(adaBalance),
-                  if (adaBalance == null) const SizedBox(height: 32),
+                  if (wallet.isCardano && adaBalance != null)
+                    _buildMainBalance(adaBalance),
+                  if (wallet.isCardano && adaBalance == null)
+                    const SizedBox(height: 32),
+                  if (wallet.isEvm) _buildEvmBalancePlaceholder(),
                   const SizedBox(height: 32),
                   _buildActionButtons(wallet),
                   const SizedBox(height: 32),
@@ -237,7 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAddressRow(String address) {
+  Widget _buildAddressRow(WatchWallet wallet) {
     return Row(
       children: [
         CircleAvatar(
@@ -251,15 +299,57 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            _shortAddress(address),
-            style: const TextStyle(fontSize: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: wallet.isEvm
+                          ? Colors.blue.shade100
+                          : Colors.teal.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      wallet.isEvm ? 'EVM' : 'Cardano',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: wallet.isEvm
+                            ? Colors.blue.shade800
+                            : Colors.teal.shade800,
+                      ),
+                    ),
+                  ),
+                  if (wallet.chainId != null) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      wallet.chainId!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _shortAddress(wallet.address),
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
           ),
         ),
         IconButton(
           icon: const Icon(Icons.copy, size: 20),
           tooltip: '复制地址',
-          onPressed: () => _copyAddress(address),
+          onPressed: () => _copyAddress(wallet.address),
         ),
       ],
     );
@@ -288,8 +378,13 @@ class _HomeScreenState extends State<HomeScreen> {
               child: _ActionButton(
                 icon: Icons.send,
                 label: '发送',
-                onTap: () =>
-                    Navigator.pushNamed(context, '/send', arguments: wallet),
+                onTap: wallet.isCardano
+                    ? () => Navigator.pushNamed(
+                        context,
+                        '/send',
+                        arguments: wallet,
+                      )
+                    : null,
               ),
             ),
             const SizedBox(width: 16),
@@ -316,6 +411,29 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  /// EVM 链余额占位提示
+  Widget _buildEvmBalancePlaceholder() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'EVM 链余额查询暂不支持',
+              style: TextStyle(color: Colors.orange.shade800),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -385,62 +503,35 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  Widget _buildError(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton(
-                  onPressed: _navigateSettings,
-                  child: const Text('去设置'),
-                ),
-                const SizedBox(width: 16),
-                FilledButton(onPressed: _load, child: const Text('重试')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _ActionButton({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 28),
-              const SizedBox(height: 8),
-              Text(label),
-            ],
+    return Opacity(
+      opacity: onTap != null ? 1.0 : 0.4,
+      child: Material(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 28),
+                const SizedBox(height: 8),
+                Text(label),
+              ],
+            ),
           ),
         ),
       ),

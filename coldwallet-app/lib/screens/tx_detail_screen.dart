@@ -108,6 +108,15 @@ class TxDetailScreen extends StatelessWidget {
               value: _formatAda(coldExport.summary.fee),
               icon: Icons.receipt,
             ),
+            if (coldExport.summary.deposit != null &&
+                coldExport.summary.deposit != '0') ...[
+              const SizedBox(height: 12),
+              _buildInfoCard(
+                title: '\u62bc\u91d1',
+                value: _formatAda(coldExport.summary.deposit!),
+                icon: Icons.lock,
+              ),
+            ],
             const Spacer(),
             _buildConfirmButton(context),
           ],

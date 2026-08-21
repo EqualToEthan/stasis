@@ -517,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        // Cardano 链选中时显示 stake address 和合并 QR 按钮
+        // Cardano 链选中时显示 stake address
         if (_isCardanoSelected && _stakeAddress != null) ...[
           const SizedBox(height: 8),
           Card(
@@ -535,14 +535,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () =>
-                _showCombinedQrDialog(selectedAddress, _stakeAddress!),
-            icon: const Icon(Icons.qr_code_2),
-            label: const Text('显示地址二维码（供观察钱包扫码导入）'),
-          ),
         ],
+        // 所有链都显示地址二维码按钮
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => _isCardanoSelected && _stakeAddress != null
+              ? _showCombinedQrDialog(selectedAddress, _stakeAddress!)
+              : _showAddressQrDialog(selectedAddress, selectedConfig.name),
+          icon: const Icon(Icons.qr_code_2),
+          label: const Text('显示地址二维码（供观察钱包扫码导入）'),
+        ),
       ],
     );
   }
@@ -573,6 +575,54 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const Icon(Icons.chevron_right),
+        ],
+      ),
+    );
+  }
+
+  /// 显示单地址二维码（EVM 等非 Cardano 链使用）
+  ///
+  /// QrImageView 内部使用 LayoutBuilder，与 AlertDialog 的 IntrinsicWidth
+  /// 不兼容，需用 SizedBox 包裹提供明确尺寸以避免固有尺寸断言异常。
+  /// 需设置 backgroundColor: Colors.white 确保暗色主题下 QR 码对比度。
+  void _showAddressQrDialog(String address, String chainName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('$chainName 地址二维码'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 240,
+              height: 240,
+              child: QrImageView(
+                data: address,
+                version: QrVersions.auto,
+                size: 240,
+                backgroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _truncate(address),
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '观察钱包扫描此二维码导入地址',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
+          ),
         ],
       ),
     );

@@ -68,18 +68,24 @@ class ColdExport {
 
 /// 交易摘要，供冷钱包用户确认交易内容
 ///
-/// 包含发送方、接收方、资产列表和手续费。
+/// 包含发送方、接收方、资产列表、手续费和可选的质押押金。
+/// [deposit] 仅在首次 stake registration 时为正数（lovelace 字符串），
+/// 表示除手续费外还需锁定的 2 ADA 押金；其他情况为 null。
 class TxSummary {
   final String fromAddress;
   final String toAddress;
   final List<AssetAmount> assets;
   final String fee;
 
+  /// 质押押金（lovelace 字符串），首次注册时存在，否则为 null
+  final String? deposit;
+
   const TxSummary({
     required this.fromAddress,
     required this.toAddress,
     required this.assets,
     required this.fee,
+    this.deposit,
   });
 
   factory TxSummary.fromJson(Map<String, dynamic> json) {
@@ -91,6 +97,7 @@ class TxSummary {
           .map((e) => AssetAmount.fromJson(e as Map<String, dynamic>))
           .toList(),
       fee: json['fee'] as String,
+      deposit: json['deposit'] as String?,
     );
   }
 
@@ -100,6 +107,7 @@ class TxSummary {
       'toAddress': toAddress,
       'assets': assets.map((e) => e.toJson()).toList(),
       'fee': fee,
+      if (deposit != null) 'deposit': deposit,
     };
   }
 }

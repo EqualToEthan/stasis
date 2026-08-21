@@ -3,7 +3,7 @@ import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 
 void main() {
   group('ColdExport staking fields', () {
-    test('payment transaction: staking fields default to null', () {
+    test('payment transaction: staking fields and deposit default to null', () {
       final json = {
         'version': 1,
         'type': 'unsigned-tx',
@@ -23,6 +23,7 @@ void main() {
       expect(export.certificates, isNull);
       expect(export.withdrawals, isNull);
       expect(export.stakeKeyPath, isNull);
+      expect(export.summary.deposit, isNull);
     });
 
     test('staking transaction: certificates parsed correctly', () {
@@ -80,7 +81,7 @@ void main() {
       expect(export.withdrawals, {'stake_test1abc': 5000000});
     });
 
-    test('toJson roundtrip preserves staking fields', () {
+    test('toJson roundtrip preserves staking fields and deposit', () {
       final original = {
         'version': 1,
         'type': 'unsigned-tx',
@@ -93,6 +94,7 @@ void main() {
             {'unit': 'lovelace', 'quantity': '2000000'},
           ],
           'fee': '180000',
+          'deposit': '2000000',
         },
         'certificates': [
           {
@@ -111,9 +113,10 @@ void main() {
       expect(roundtripped.certificates![0].poolKeyHash, 'pool456');
       expect(roundtripped.withdrawals, {'stake_test1abc': 3000000});
       expect(roundtripped.stakeKeyPath, "m/1852'/1815'/0'/2/0");
+      expect(roundtripped.summary.deposit, '2000000');
     });
 
-    test('toJson omits null staking fields', () {
+    test('toJson omits null staking fields and deposit', () {
       final json = {
         'version': 1,
         'type': 'unsigned-tx',
@@ -134,6 +137,8 @@ void main() {
       expect(output.containsKey('certificates'), isFalse);
       expect(output.containsKey('withdrawals'), isFalse);
       expect(output.containsKey('stakeKeyPath'), isFalse);
+      final summaryOutput = output['summary'] as Map<String, dynamic>;
+      expect(summaryOutput.containsKey('deposit'), isFalse);
     });
   });
 }

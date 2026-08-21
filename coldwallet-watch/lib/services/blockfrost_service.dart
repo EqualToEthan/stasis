@@ -54,9 +54,16 @@ class BlockfrostService {
   }
 
   /// 查询地址的资产余额
+  ///
+  /// 若地址在链上从未出现过（Blockfrost 返回 404），
+  /// 返回空余额对象 `{"amount": []}` 而非抛异常。
   Future<Map<String, dynamic>> getAddressBalance(String address) async {
     final url = Uri.parse('$_baseUrl/addresses/$address');
     final response = await _client.get(url, headers: _headers);
+    if (response.statusCode == 404) {
+      // 地址尚未在链上出现过，返回空余额
+      return {'amount': <dynamic>[]};
+    }
     if (response.statusCode != 200) {
       throw Exception(
         'Blockfrost error: ${response.statusCode} ${response.body}',

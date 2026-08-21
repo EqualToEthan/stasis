@@ -9,9 +9,9 @@
 | asset_service.dart | AssetService | 资产查询，通过 Blockfrost 获取地址余额并结合用户启用配置返回资产列表 |
 | blockfrost_service.dart | BlockfrostService, BlockfrostEndpoint | Blockfrost API 封装，提供 UTxO、余额、区块、协议参数查询和交易提交 |
 | storage_service.dart | StorageService | 本地存储，SharedPreferences 存钱包列表，SecureStorage 存 API Key |
-| stake_transaction_builder.dart | StakeTransactionBuilder | 质押交易构建，支持委托、提取奖励、解除注册三种操作，迭代计算手续费 |
-| tx_builder_service.dart | TxBuilderService | 交易构建，使用 cardano_dart_types 构建 ADA 转账的未签名交易，迭代计算手续费 |
-| wallet_service.dart | WalletService | 钱包管理，提供只读钱包的增删改查、当前钱包切换和地址格式验证 |
+| stake_transaction_builder.dart | StakeTransactionBuilder | 质押交易构建，支持委托、提取奖励、解除注册三种操作，迭代计算手续费（含 payment + stake witness 占位），首次注册时 summary 含 2 ADA 押金 |
+| tx_builder_service.dart | TxBuilderService | 交易构建，使用 cardano_dart_types 构建 ADA 转账的未签名交易，迭代计算手续费（含 payment witness 占位） |
+| wallet_service.dart | WalletService | 钱包管理，提供只读钱包的增删改查、当前钱包切换、多链地址格式验证和链族自动检测 |
 
 ## 公开方法
 
@@ -22,17 +22,18 @@
 | `getWallets()` | `Future<List<WatchWallet>>` | 获取所有钱包列表 |
 | `getCurrentWallet()` | `Future<WatchWallet?>` | 获取当前钱包（无则自动选第一个） |
 | `setCurrentWallet(id)` | `Future<void>` | 切换当前钱包 |
-| `addWallet(name, address, network, stakeAddress?)` | `Future<WatchWallet>` | 添加新钱包并保存 |
+| `addWallet(name, address, chainFamily, network, chainId?, stakeAddress?)` | `Future<WatchWallet>` | 添加新钱包并保存 |
 | `deleteWallet(id)` | `Future<void>` | 删除钱包（自动切换当前） |
 | `updateWallet(wallet)` | `Future<void>` | 更新钱包信息 |
-| `validateAddress(address)` | `bool` | 校验 Cardano bech32 地址格式 |
+| `validateAddress(address, chainFamily)` | `bool` | 校验地址格式（Cardano: bech32 前缀 + 长度，EVM: 0x + 40 hex） |
+| `detectChainFamily(address)` | `String?` | 从地址格式自动推断链族（cardano / evm / null） |
 
 ### BlockfrostService
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
 | `getAddressUtxos(address)` | `Future<List<Map>>` | 查询地址所有 UTxO |
-| `getAddressBalance(address)` | `Future<Map>` | 查询地址资产余额 |
+| `getAddressBalance(address)` | `Future<Map>` | 查询地址资产余额（404 返回空余额，不抛异常） |
 | `getLatestBlock()` | `Future<Map>` | 获取最新区块（含 slot） |
 | `getProtocolParams()` | `Future<Map>` | 获取协议参数（手续费系数等） |
 | `submitTx(txBytes)` | `Future<String>` | 提交已签名交易，返回交易哈希 |
@@ -108,6 +109,8 @@ screens/ → BlockfrostService（直接调用 submitTx / getPoolInfo / getStakeA
 | 添加新的 API 查询方法 | blockfrost_service.dart — 添加新的 Future 方法 |
 | 修改钱包存储格式 | storage_service.dart — 修改 key 和序列化方式 |
 | 支持多资产转账 | tx_builder_service.dart — 修改 buildTransferTx 和 _buildOutputs |
-| 修改地址验证规则 | wallet_service.dart — 修改 validateAddress 方法 |
+| 修改地址验证规则 | wallet_service.dart — 修改 validateAddress 方法中的链分支 |
+| 添加新链族的地址检测 | wallet_service.dart — 在 detectChainFamily 中添加新的前缀判断 |
 | 添加新的存储配置项 | storage_service.dart — 添加新的 key 和 getter/setter |
-| 修改手续费计算逻辑 | tx_builder_service.dart — 修改迭代估算循环 |
+| 修改手续费计算逻辑 | tx_builder_service.dart / stake_transaction_builder.dart — 修改迭代估算循环，注意 witness set 占位 |
+| 修复 FeeTooSmallUTxO | 检查费用估算是否包含最终签名后的 witness 大小 |

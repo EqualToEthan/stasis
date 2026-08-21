@@ -3,7 +3,8 @@ import 'dart:typed_data';
 import 'package:cardano_dart_types/cardano_dart_types.dart';
 import 'package:hex/hex.dart';
 
-import 'package:coldwallet_protocol/coldwallet_protocol.dart' hide Certificate, CertificateType;
+import 'package:coldwallet_protocol/coldwallet_protocol.dart'
+    hide Certificate, CertificateType;
 import 'package:coldwallet_protocol/cardano/certificate.dart' as proto_cert;
 import 'blockfrost_service.dart';
 
@@ -78,6 +79,7 @@ class StakeTransactionBuilder {
       certs: certs,
       withdrawals: null,
       extraCost: deposit,
+      deposit: isStakeRegistered ? null : stakeDepositLovelace.toString(),
       exportCerts: [
         if (!isStakeRegistered)
           proto_cert.Certificate(
@@ -189,6 +191,28 @@ class StakeTransactionBuilder {
     return Uint8List.fromList(decoded.sublist(1));
   }
 
+  /// 构建用于费用估算的 witness set
+  ///
+  /// Cardano 的手续费按交易整体字节数计算，包含 witness set。未签名交易在导出时
+  /// 使用空 witness set，但签名后会追加 payment key witness，质押交易还会追加
+  /// stake key witness。因此估算费用时必须用占位 witness 计入这部分大小。
+  WitnessSet _estimatedWitnessSet({required bool hasStakeWitness}) {
+    final witnesses = <WitnessVKey>[_dummyVKeyWitness()];
+    if (hasStakeWitness) {
+      witnesses.add(_dummyVKeyWitness());
+    }
+    return WitnessSet(
+      ivkeyWitnesses: ListWithCborType(witnesses, CborLengthType.definite, []),
+    );
+  }
+
+  /// 生成与真实 witness 等大小的占位 witness
+  ///
+  /// VKey witness 的 CBOR 编码长度为：32 字节公钥 + 64 字节签名 + CBOR 头开销。
+  /// 全 0 字节与实际随机字节在 CBOR bytes 类型中长度相同，适合用于费用估算。
+  WitnessVKey _dummyVKeyWitness() =>
+      WitnessVKey(vkey: Uint8List(32), signature: Uint8List(64));
+
   /// 通用质押交易构建方法（含迭代手续费计算）
   Future<ColdExport> _buildStakingTx({
     required String fromAddress,
@@ -201,6 +225,7 @@ class StakeTransactionBuilder {
     List<Withdraw>? withdrawals,
     required BigInt extraCost,
     BigInt? extraIncome,
+    String? deposit,
     List<proto_cert.Certificate>? exportCerts,
     Map<String, int>? exportWithdrawals,
   }) async {
@@ -272,17 +297,30 @@ class StakeTransactionBuilder {
         networkId: networkId,
       );
 
-      final tx = CardanoTransaction(
+      // 费用估算必须包含最终签名后的 witness 大小：
+      // - 所有交易都需要 1 个 payment key witness
+      // - 有 certificates 或 withdrawals 时还需 1 个 stake key witness
+      final feeTx = CardanoTransaction(
         body: body,
-        witnessSet: const WitnessSet(),
+        witnessSet: _estimatedWitnessSet(
+          hasStakeWitness: certs != null || withdrawals != null,
+        ),
         isValidDi: true,
         auxiliaryData: null,
         overrideBodyMetadataHash: false,
       );
 
-      final txBytes = tx.serializeAsBytes();
+      final txBytes = feeTx.serializeAsBytes();
       final newFee = BigInt.from(minFeeA * txBytes.length + minFeeB);
       if (newFee == fee) {
+        // 导出的未签名交易仍使用空 witness set
+        final tx = CardanoTransaction(
+          body: body,
+          witnessSet: const WitnessSet(),
+          isValidDi: true,
+          auxiliaryData: null,
+          overrideBodyMetadataHash: false,
+        );
         return ColdExport(
           network: network,
           txCbor: tx.serializeHexString(),
@@ -291,6 +329,7 @@ class StakeTransactionBuilder {
             toAddress: fromAddress, // 质押交易回到自身
             assets: [AssetAmount(unit: 'lovelace', quantity: '0')],
             fee: fee.toString(),
+            deposit: deposit,
           ),
           certificates: exportCerts,
           withdrawals: exportWithdrawals,

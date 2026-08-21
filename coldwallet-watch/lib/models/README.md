@@ -10,7 +10,7 @@
 | certificate.dart | Certificate, CertificateType | 质押证书模型，描述注册/委托/解除注册操作 |
 | cold_export.dart | ColdExport, TxSummary, AssetAmount | 热端导出给冷端的未签名交易数据，包含 CBOR、摘要、资产列表和质押字段 |
 | cold_import.dart | ColdImport | 冷端签名后返回给热端的已签名交易数据，包含 CBOR 和交易哈希 |
-| watch_wallet.dart | WatchWallet | 只读钱包模型，存储观察地址的名称、地址、网络和创建时间 |
+| watch_wallet.dart | WatchWallet | 只读钱包模型，存储观察地址的名称、地址、链族（cardano/evm）、具体链 ID、网络和创建时间 |
 
 ## 数据模型详情
 
@@ -20,14 +20,17 @@
 |------|------|------|
 | `id` | `String` | 基于时间戳的唯一 ID |
 | `name` | `String` | 用户自定义钱包名称 |
-| `address` | `String` | Cardano bech32 观察地址 |
-| `stakeAddress` | `String?` | Cardano stake address（可选，质押功能需要） |
+| `address` | `String` | 观察地址（Cardano bech32 或 EVM hex） |
+| `stakeAddress` | `String?` | Cardano stake address（可选，仅 Cardano 链族有效） |
+| `chainFamily` | `String` | 链族标识：`'cardano'` 或 `'evm'` |
+| `chainId` | `String?` | 具体链 ID（EVM 链需要，如 `sepolia`、`bsc-testnet`） |
 | `network` | `String` | 网络标识（`preview`） |
 | `createdAt` | `DateTime` | 创建时间 |
 
-- `WatchWallet.create(name, address, network)` — 工厂方法，自动生成 ID
-- `WatchWallet.fromJson(json)` / `toJson()` — JSON 序列化
+- `WatchWallet.create(name, address, chainFamily, network, ...)` — 工厂方法，自动生成 ID
+- `WatchWallet.fromJson(json)` / `toJson()` — JSON 序列化（向后兼容：旧数据无 chainFamily 默认 cardano）
 - `copyWith(...)` — 不可变更新
+- `isCardano` / `isEvm` — 链族判断 getter
 
 ### AssetBalance — 资产余额
 
@@ -100,6 +103,7 @@
 | 我想... | 修改文件 |
 |---------|---------|
 | 给钱包添加新属性（如标签、图标） | watch_wallet.dart — 添加字段 + toJson/fromJson + copyWith |
+| 添加新的链族支持 | watch_wallet.dart — 扩展 chainFamily 枚举值 + 更新校验规则 |
 | 修改交易摘要展示的内容 | cold_export.dart — 修改 TxSummary 类 |
 | 支持新的资产类型 | asset_balance.dart — 添加字段或新的 getter |
 | 修改冷热钱包传输格式 | cold_export.dart / cold_import.dart — 同步修改两端的模型 |

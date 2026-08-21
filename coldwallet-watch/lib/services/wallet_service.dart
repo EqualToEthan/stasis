@@ -39,6 +39,8 @@ class WalletService {
     required String name,
     required String address,
     String? stakeAddress,
+    required String chainFamily,
+    String? chainId,
     required String network,
   }) async {
     final wallets = await getWallets();
@@ -46,6 +48,8 @@ class WalletService {
       name: name,
       address: address,
       stakeAddress: stakeAddress,
+      chainFamily: chainFamily,
+      chainId: chainId,
       network: network,
     );
     wallets.add(wallet);
@@ -75,15 +79,48 @@ class WalletService {
     }
   }
 
-  /// 校验 Cardano 地址格式
+  /// 校验地址格式（链感知）
   ///
-  /// 检查 bech32 前缀（addr1 / addr_test1）和最小长度。
-  bool validateAddress(String address) {
+  /// 根据 [chainFamily] 选择对应的校验规则：
+  /// - cardano: bech32 前缀（addr1 / addr_test1）+ 最小长度 50
+  /// - evm: 0x 前缀 + 40 位 hex 字符（总长度 42）
+  bool validateAddress(String address, String chainFamily) {
     final trimmed = address.trim();
     if (trimmed.isEmpty) return false;
-    // Basic Cardano address validation: bech32 prefix + sufficient length.
-    final validPrefix =
-        trimmed.startsWith('addr1') || trimmed.startsWith('addr_test1');
-    return validPrefix && trimmed.length >= 50;
+
+    switch (chainFamily) {
+      case 'cardano':
+        final validPrefix =
+            trimmed.startsWith('addr1') || trimmed.startsWith('addr_test1');
+        return validPrefix && trimmed.length >= 50;
+      case 'evm':
+        if (!trimmed.startsWith('0x') || trimmed.length != 42) return false;
+        // 检查 0x 后是否全是合法 hex
+        final hexPart = trimmed.substring(2);
+        return RegExp(r'^[0-9a-fA-F]{40}$').hasMatch(hexPart);
+      default:
+        return false;
+    }
+  }
+
+  /// 从地址格式自动推断链族
+  ///
+  /// - 以 'addr1' 或 'addr_test1' 开头 → 'cardano'
+  /// - 以 '0x' + 40 hex 字符 → 'evm'
+  /// - 无法识别 → null
+  String? detectChainFamily(String address) {
+    final trimmed = address.trim();
+    if (trimmed.isEmpty) return null;
+
+    if (trimmed.startsWith('addr1') || trimmed.startsWith('addr_test1')) {
+      return 'cardano';
+    }
+    if (trimmed.startsWith('0x') && trimmed.length == 42) {
+      final hexPart = trimmed.substring(2);
+      if (RegExp(r'^[0-9a-fA-F]{40}$').hasMatch(hexPart)) {
+        return 'evm';
+      }
+    }
+    return null;
   }
 }

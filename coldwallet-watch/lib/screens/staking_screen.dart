@@ -9,10 +9,13 @@ import '../services/storage_service.dart';
 /// 质押管理页面
 ///
 /// 展示当前质押状态（委托池、可提取奖励），提供三种操作入口：
-/// 委托（注册+委托合并）、提取奖励、解除注册。
+/// 委托（首次注册+委托，或已委托时重新委托）、提取奖励、解除注册。
 /// 构建的未签名交易通过 [ColdExport] 传递给冷钱包签名。
 class StakingScreen extends StatefulWidget {
-  const StakingScreen({super.key});
+  /// 可选的 Blockfrost 服务注入，用于测试。
+  final BlockfrostService? blockfrostService;
+
+  const StakingScreen({super.key, this.blockfrostService});
 
   @override
   State<StakingScreen> createState() => _StakingScreenState();
@@ -79,6 +82,7 @@ class _StakingScreenState extends State<StakingScreen> {
   }
 
   Future<BlockfrostService> _createBlockfrost(String network) async {
+    if (widget.blockfrostService != null) return widget.blockfrostService!;
     final storage = await StorageService.create();
     final apiKey = await storage.getBlockfrostApiKey() ?? '';
     return BlockfrostService(apiKey: apiKey, network: network);
@@ -132,9 +136,11 @@ class _StakingScreenState extends State<StakingScreen> {
     final wallet = _wallet;
     if (wallet == null || wallet.stakeAddress == null) return;
 
-    final rewardAmount = BigInt.tryParse(
-      (_stakeInfo?['withdrawable_amount'] ?? '0').toString(),
-    ) ?? BigInt.zero;
+    final rewardAmount =
+        BigInt.tryParse(
+          (_stakeInfo?['withdrawable_amount'] ?? '0').toString(),
+        ) ??
+        BigInt.zero;
 
     if (rewardAmount <= BigInt.zero) {
       _showError('没有可提取的奖励');
@@ -180,8 +186,14 @@ class _StakingScreenState extends State<StakingScreen> {
           '当前委托关系也将终止。\n\n确定要继续吗？',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确定')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('确定'),
+          ),
         ],
       ),
     );
@@ -207,9 +219,9 @@ class _StakingScreenState extends State<StakingScreen> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
 
   Future<void> _copyStakeAddress() async {
@@ -217,7 +229,9 @@ class _StakingScreenState extends State<StakingScreen> {
     if (addr == null) return;
     await Clipboard.setData(ClipboardData(text: addr));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Stake address 已复制')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Stake address 已复制')));
   }
 
   String _formatAda(String lovelace) {
@@ -266,9 +280,7 @@ class _StakingScreenState extends State<StakingScreen> {
             children: [
               const Icon(Icons.warning_amber, color: Colors.orange),
               const SizedBox(width: 12),
-              const Expanded(
-                child: Text('该钱包没有 stake address，无法进行质押操作'),
-              ),
+              const Expanded(child: Text('该钱包没有 stake address，无法进行质押操作')),
             ],
           ),
         ),
@@ -335,9 +347,9 @@ class _StakingScreenState extends State<StakingScreen> {
           children: [
             Text(
               '质押状态',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             _infoRow('状态', isActive ? '已注册' : '未注册'),
@@ -376,9 +388,21 @@ class _StakingScreenState extends State<StakingScreen> {
   Widget _buildActionTabs() {
     return SegmentedButton<String>(
       segments: const [
-        ButtonSegment(value: 'delegate', label: Text('委托'), icon: Icon(Icons.how_to_vote)),
-        ButtonSegment(value: 'withdraw', label: Text('提取奖励'), icon: Icon(Icons.savings)),
-        ButtonSegment(value: 'deregister', label: Text('解除注册'), icon: Icon(Icons.person_remove)),
+        ButtonSegment(
+          value: 'delegate',
+          label: Text('委托'),
+          icon: Icon(Icons.how_to_vote),
+        ),
+        ButtonSegment(
+          value: 'withdraw',
+          label: Text('提取奖励'),
+          icon: Icon(Icons.savings),
+        ),
+        ButtonSegment(
+          value: 'deregister',
+          label: Text('解除注册'),
+          icon: Icon(Icons.person_remove),
+        ),
       ],
       selected: {_selectedAction},
       onSelectionChanged: (selection) {
@@ -405,9 +429,32 @@ class _StakingScreenState extends State<StakingScreen> {
       return const Text('请先导入 stake address');
     }
 
+    final poolId = _stakeInfo?['pool_id'] as String?;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 已委托时展示当前委托信息作为提示，但不阻断 re-delegation
+        if (poolId != null) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '当前已委托到 ${_shortPoolId(poolId)}',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         TextField(
           controller: _poolIdController,
           maxLines: 2,
@@ -419,8 +466,12 @@ class _StakingScreenState extends State<StakingScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          '输入目标 Stake Pool 的 bech32 ID。如果 stake key 尚未注册，会自动包含注册操作（需 2 ADA 押金）。',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+          poolId != null
+              ? '如需更换委托池，直接输入新的 Pool ID 即可重新委托。'
+              : '输入目标 Stake Pool 的 bech32 ID。如果 stake key 尚未注册，会自动包含注册操作（需 2 ADA 押金）。',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Colors.grey),
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -431,7 +482,10 @@ class _StakingScreenState extends State<StakingScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Text('构建委托交易'),
           ),
@@ -446,7 +500,8 @@ class _StakingScreenState extends State<StakingScreen> {
     }
 
     final rewardAmount = _stakeInfo?['withdrawable_amount']?.toString() ?? '0';
-    final hasReward = (BigInt.tryParse(rewardAmount) ?? BigInt.zero) > BigInt.zero;
+    final hasReward =
+        (BigInt.tryParse(rewardAmount) ?? BigInt.zero) > BigInt.zero;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,7 +516,10 @@ class _StakingScreenState extends State<StakingScreen> {
                 const Text('可提取奖励'),
                 Text(
                   '${_formatAda(rewardAmount)} ADA',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ],
             ),
@@ -476,7 +534,10 @@ class _StakingScreenState extends State<StakingScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Text('提取奖励'),
           ),
@@ -502,9 +563,7 @@ class _StakingScreenState extends State<StakingScreen> {
                 Icon(Icons.warning, color: Theme.of(context).colorScheme.error),
                 const SizedBox(width: 12),
                 const Expanded(
-                  child: Text(
-                    '解除注册后将退回 2 ADA deposit，同时终止当前委托关系。',
-                  ),
+                  child: Text('解除注册后将退回 2 ADA deposit，同时终止当前委托关系。'),
                 ),
               ],
             ),
@@ -522,7 +581,10 @@ class _StakingScreenState extends State<StakingScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Text('解除 Stake Key 注册'),
           ),

@@ -7,7 +7,7 @@
 | 文件 | 主要类 | 功能说明 |
 |------|--------|----------|
 | qr_display.dart | QRDisplay | 二维码显示组件，封装 qr_flutter 的 QrImageView |
-| qr_scanner.dart | QRScanner | 二维码扫描组件，封装 mobile_scanner，扫描成功回调原始字符串 |
+| qr_scanner.dart | QRScanner | 二维码扫描组件，封装 mobile_scanner (^7.4.0)，支持 Web + Android 摄像头扫码，扫描成功回调原始字符串 |
 
 ## 依赖关系
 

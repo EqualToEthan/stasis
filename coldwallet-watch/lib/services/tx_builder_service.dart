@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cardano_dart_types/cardano_dart_types.dart';
 
 import 'package:coldwallet_protocol/coldwallet_protocol.dart';
@@ -89,17 +91,26 @@ class TxBuilderService {
         networkId: networkId,
       );
 
-      final tx = CardanoTransaction(
+      // 费用估算必须包含最终签名后的 payment key witness 大小
+      final feeTx = CardanoTransaction(
         body: body,
-        witnessSet: const WitnessSet(),
+        witnessSet: _estimatedWitnessSet(),
         isValidDi: true,
         auxiliaryData: null,
         overrideBodyMetadataHash: false,
       );
 
-      final txBytes = tx.serializeAsBytes();
+      final txBytes = feeTx.serializeAsBytes();
       final newFee = BigInt.from(minFeeA * txBytes.length + minFeeB);
       if (newFee == fee) {
+        // 导出的未签名交易仍使用空 witness set
+        final tx = CardanoTransaction(
+          body: body,
+          witnessSet: const WitnessSet(),
+          isValidDi: true,
+          auxiliaryData: null,
+          overrideBodyMetadataHash: false,
+        );
         return ColdExport(
           network: network,
           txCbor: tx.serializeHexString(),
@@ -116,6 +127,17 @@ class TxBuilderService {
 
     throw Exception('无法收敛到稳定的手续费估算');
   }
+
+  /// 构建用于费用估算的 witness set
+  ///
+  /// 转账交易签名后会追加 1 个 payment key witness，估算费用时必须计入其大小。
+  WitnessSet _estimatedWitnessSet() => WitnessSet(
+    ivkeyWitnesses: ListWithCborType(
+      [WitnessVKey(vkey: Uint8List(32), signature: Uint8List(64))],
+      CborLengthType.definite,
+      [],
+    ),
+  );
 
   List<CardanoTransactionOutput> _buildOutputs({
     required Address toAddr,

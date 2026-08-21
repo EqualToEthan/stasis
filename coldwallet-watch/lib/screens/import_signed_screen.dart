@@ -23,14 +23,62 @@ class ImportSignedScreen extends StatefulWidget {
 
 class _ImportSignedScreenState extends State<ImportSignedScreen> {
   bool _submitting = false;
+  bool _showScanner = false;
 
   Future<void> _parseAndSubmit(String jsonStr) async {
     try {
       final data = jsonDecode(jsonStr) as Map<String, dynamic>;
       final coldImport = ColdImport.fromJson(data);
-      await _submit(coldImport);
+      await _confirmAndSubmit(coldImport);
     } catch (e) {
       _showError('解析签名文件失败: $e');
+    }
+  }
+
+  /// 显示确认对话框，用户确认后才提交交易到链上。
+  ///
+  /// 提交链上交易是不可逆操作，所有导入方式（扫码、文件、粘贴）
+  /// 在提交前都必须经过用户确认。
+  Future<void> _confirmAndSubmit(ColdImport coldImport) async {
+    final txCborPreview = coldImport.txCbor.length > 64
+        ? '${coldImport.txCbor.substring(0, 64)}...'
+        : coldImport.txCbor;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('确认导入签名结果'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('TxHash: ${coldImport.txHash}'),
+              const SizedBox(height: 8),
+              Text('TxCbor: $txCborPreview'),
+              const SizedBox(height: 16),
+              const Text(
+                '提交后将向链上广播此交易，操作不可撤销。',
+                style: TextStyle(color: Colors.orange),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('确认提交'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _submit(coldImport);
     }
   }
 
@@ -116,32 +164,127 @@ class _ImportSignedScreenState extends State<ImportSignedScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Expanded(child: QRScanner(onScan: _parseAndSubmit)),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _pickFile,
-                          icon: const Icon(Icons.folder_open),
-                          label: const Text('从文件导入'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _pasteJson,
-                          icon: const Icon(Icons.paste),
-                          label: const Text('粘贴 JSON'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              child: _showScanner ? _buildScanner() : _buildMethodSelector(),
             ),
+    );
+  }
+
+  /// 导入方式选择面板
+  ///
+  /// 默认显示三种导入方式，避免进入页面直接打开摄像头。
+  Widget _buildMethodSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '请选择导入方式',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        _ImportMethodCard(
+          icon: Icons.qr_code_scanner,
+          title: '扫描二维码',
+          subtitle: '扫描冷钱包端展示的签名结果二维码',
+          onTap: () => setState(() => _showScanner = true),
+        ),
+        const SizedBox(height: 12),
+        _ImportMethodCard(
+          icon: Icons.folder_open,
+          title: '从文件导入',
+          subtitle: '选择 .json 签名文件',
+          onTap: _pickFile,
+        ),
+        const SizedBox(height: 12),
+        _ImportMethodCard(
+          icon: Icons.paste,
+          title: '粘贴 JSON',
+          subtitle: '从剪贴板粘贴签名结果 JSON',
+          onTap: _pasteJson,
+        ),
+      ],
+    );
+  }
+
+  /// 二维码扫描面板
+  ///
+  /// 用户主动选择扫码后展示，并提供返回选择面板的入口。
+  Widget _buildScanner() {
+    return Column(
+      children: [
+        Expanded(child: QRScanner(onScan: _parseAndSubmit)),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => setState(() => _showScanner = false),
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('选择其他方式'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 导入方式卡片
+class _ImportMethodCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ImportMethodCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 32,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
