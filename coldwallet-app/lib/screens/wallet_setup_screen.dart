@@ -592,8 +592,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
             TextButton(
               onPressed: () async {
                 final pin = pinController.text.trim();
-                if (pin.length != 6 ||
-                    !RegExp(r'^\d{6}$').hasMatch(pin)) {
+                if (pin.length != 6 || !RegExp(r'^\d{6}$').hasMatch(pin)) {
                   _showError('请输入 6 位数字 PIN');
                   return;
                 }
