@@ -751,6 +751,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_showingImportForm) ...[
@@ -768,6 +769,19 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
               icon: const Icon(Icons.add),
               label: const Text('添加新钱包'),
             ),
+          ] else ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                '已达钱包数量上限（${WalletService.maxWallets}个），不能再新增',
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Colors.grey),
+              ),
+            ),
           ],
         ],
       ),
@@ -778,6 +792,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
     final isExpanded = _expandedWalletId == wallet.id;
     return Card(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
             leading: const Icon(Icons.account_balance_wallet),
@@ -812,6 +827,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('多链地址', style: Theme.of(context).textTheme.titleSmall),
