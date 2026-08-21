@@ -5,8 +5,7 @@ import 'dart:typed_data';
 import 'package:cardano_dart_types/cardano_dart_types.dart';
 import 'package:coldwallet_protocol/coldwallet_protocol.dart'
     hide Certificate, CertificateType;
-import 'package:coldwallet_protocol/cardano/certificate.dart'
-    as proto_cert;
+import 'package:coldwallet_protocol/cardano/certificate.dart' as proto_cert;
 import 'package:coldwallet_watch/services/blockfrost_service.dart';
 import 'package:coldwallet_watch/services/stake_transaction_builder.dart';
 import 'package:flutter_test/flutter_test.dart';
