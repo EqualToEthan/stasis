@@ -29,6 +29,10 @@ class ExportTxScreen extends StatelessWidget {
       }
     }
 
+    /// 将未签名交易 JSON 保存到应用文档目录
+    ///
+    /// 如果当前运行的应用未重新构建安装，path_provider 插件可能未注册，
+    /// 会抛出 [MissingPluginException]，此时提示用户重新安装应用。
     Future<void> saveFile() async {
       try {
         final dir = await getApplicationDocumentsDirectory();
@@ -40,6 +44,15 @@ class ExportTxScreen extends StatelessWidget {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('文件已保存: ${file.path}')));
+        }
+      } on MissingPluginException catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('文件保存插件未初始化，请卸载应用后重新安装再试'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       } catch (e) {
         if (context.mounted) {
