@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../models/watch_wallet.dart';
 import '../services/storage_service.dart';
 import '../services/wallet_service.dart';
@@ -22,21 +23,19 @@ class AddWalletScreen extends StatefulWidget {
   State<AddWalletScreen> createState() => _AddWalletScreenState();
 }
 
-/// EVM 链选项：显示名称 → chainId
-const _evmChainOptions = <MapEntry<String, String>>[
-  MapEntry('Ethereum Sepolia', 'sepolia'),
-  MapEntry('BSC Testnet', 'bsc-testnet'),
-  MapEntry('Arbitrum Sepolia', 'arbitrum-sepolia'),
-  MapEntry('Polygon Amoy', 'polygon-amoy'),
-  MapEntry('Base Sepolia', 'base-sepolia'),
-];
+/// EVM 链选项：显示名称 → chainId（根据 AppConfig.isMainnet 动态选组）
+List<MapEntry<String, String>> get _evmChainOptions {
+  return ChainRegistry.configsForFamily(
+    'evm',
+  ).map((c) => MapEntry(c.name, c.chainId)).toList();
+}
 
 class _AddWalletScreenState extends State<AddWalletScreen> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _stakeAddressController = TextEditingController();
   late WalletService _walletService;
-  final String _network = 'preview';
+  String get _network => AppConfig.isMainnet ? 'mainnet' : 'preview';
   bool _initialized = false;
   bool _saving = false;
   bool _showingScanner = false;
@@ -44,7 +43,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
 
   // 链选择状态：null 表示尚未选择（等待扫码自动检测或手动选择）
   String? _chainFamily;
-  String? _evmChainId = _evmChainOptions.first.value;
+  String? _evmChainId;
 
   @override
   void initState() {
@@ -58,7 +57,10 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     _walletService = WalletService(storage);
     await _loadWallets();
     if (!mounted) return;
-    setState(() => _initialized = true);
+    setState(() {
+      _initialized = true;
+      _evmChainId = _evmChainOptions.firstOrNull?.value;
+    });
   }
 
   /// 从 WalletService 重新加载钱包列表并刷新 UI。

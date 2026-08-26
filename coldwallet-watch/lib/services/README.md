@@ -8,8 +8,8 @@
 |------|--------|----------|
 | asset_service.dart | AssetService | 资产查询，通过 Blockfrost 获取地址余额并结合用户启用配置返回资产列表 |
 | blockfrost_service.dart | BlockfrostService, BlockfrostEndpoint | Blockfrost API 封装，提供 UTxO、余额、区块、协议参数查询和交易提交 |
-| storage_service.dart | StorageService | 本地存储，SharedPreferences 存钱包列表，SecureStorage 存 API Key |
-| stake_transaction_builder.dart | StakeTransactionBuilder | 质押交易构建，支持委托、提取奖励、解除注册三种操作，迭代计算手续费（含 payment + stake witness 占位），首次注册时 summary deposit 为正数（2 ADA），解除注册时为负数（退回 2 ADA） |
+| `storage_service.dart | StorageService | 本地存储，SharedPreferences 存钱包列表，SecureStorage 存 API Key（测试网/主网分别存储） |
+| stake_transaction_builder.dart | StakeTransactionBuilder | 质押交易构建，支持委托、提取奖励、解除注册三种操作，迭代计算手续费（含 payment + stake witness 占位），首次注册时 summary deposit 为正数（2 ADA），解除注册时为负数（退回 2 ADA）；DRep 弃权证书随委托交易自动附带（ADR 0004），Conway 时代 ledger 对 withdrawal 的 DRep 检查用证书应用前的账户状态快照，因此提取奖励交易是纯 withdrawal、不能附带任何证书 |
 | tx_builder_service.dart | TxBuilderService | 交易构建，使用 cardano_dart_types 构建 ADA 转账的未签名交易，迭代计算手续费（含 payment witness 占位） |
 | wallet_service.dart | WalletService | 钱包管理，提供只读钱包的增删改查、当前钱包切换、多链地址格式验证和链族自动检测 |
 
@@ -39,7 +39,7 @@
 | `submitTx(txBytes)` | `Future<String>` | 提交已签名交易，返回交易哈希 |
 | `getPoolInfo(poolId)` | `Future<Map>` | 查询 stake pool 信息 |
 | `isPoolRetired(poolId)` | `Future<bool>` | 检查 pool 是否已退役 |
-| `getStakeAccountInfo(stakeAddress)` | `Future<Map>` | 查询 stake account 信息（状态、委托池、可提取奖励） |
+| `getStakeAccountInfo(stakeAddress)` | `Future<Map>` | 查询 stake account 信息（状态、委托池、DRep 委托、可提取奖励） |
 
 ### AssetService
 
@@ -51,8 +51,8 @@
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
-| `buildDelegate(fromAddress, stakeAddress, poolIdBech32, network, isStakeRegistered)` | `Future<ColdExport>` | 构建委托交易（自动注册 stake key + 委托） |
-| `buildWithdrawReward(fromAddress, stakeAddress, withdrawableAmount, network)` | `Future<ColdExport>` | 构建提取奖励交易 |
+| `buildDelegate(fromAddress, stakeAddress, poolIdBech32, network, isStakeRegistered)` | `Future<ColdExport>` | 构建委托交易：自动注册 stake key（如需）+ 委托 pool + DRep 弃权（abstain）三证书一笔完成，全流程签名次数降到链上规则下限 2 次（ADR 0004） |
+| `buildWithdrawReward(fromAddress, stakeAddress, withdrawableAmount, network)` | `Future<ColdExport>` | 构建提取奖励交易，仅包含 withdrawal，不附带任何证书（前置弃权已由委托交易完成） |
 | `buildDeregister(fromAddress, stakeAddress, network)` | `Future<ColdExport>` | 构建解除 stake key 注册交易，deposit 为负数表示退回押金 |
 
 ### TxBuilderService
@@ -68,8 +68,7 @@
 | `create()` | `Future<StorageService>` | 工厂方法，初始化 SharedPreferences 和 SecureStorage |
 | `loadWallets()` / `saveWallets(wallets)` | — | 钱包列表读写（SharedPreferences） |
 | `getCurrentWalletId()` / `setCurrentWalletId(id)` | — | 当前钱包 ID |
-| `getCurrentNetwork()` / `setCurrentNetwork(network)` | — | 网络设置（固定 preview） |
-| `getBlockfrostApiKey()` / `setBlockfrostApiKey(key)` / `deleteBlockfrostApiKey()` | — | API Key 管理（SecureStorage） |
+| `getBlockfrostApiKey()` / `setBlockfrostApiKey(key)` / `deleteBlockfrostApiKey()` | — | API Key 管理（SecureStorage，根据 AppConfig.isMainnet 自动选测试网/主网 key） |
 | `getEnabledAssets(walletId)` / `setEnabledAssets(walletId, units)` | — | 用户启用的资产列表 |
 
 ## 依赖关系
@@ -77,6 +76,7 @@
 - **内部依赖**：
   - `models/` — WatchWallet、AssetBalance、ColdExport
 - **外部依赖**：
+  - `coldwallet_protocol` — 共享协议包（ChainConfig、ChainRegistry、AppConfig）
   - `http` — HTTP 请求（Blockfrost API）
   - `shared_preferences` — 明文本地存储
   - `flutter_secure_storage` — 加密安全存储
@@ -98,7 +98,8 @@ screens/ → BlockfrostService（直接调用 submitTx / getPoolInfo / getStakeA
 |-----|------|---------|
 | `watch_wallets` | 只读钱包列表 JSON | SharedPreferences |
 | `current_wallet_id` | 当前选中钱包 ID | SharedPreferences |
-| `blockfrost_api_key` | Blockfrost API Key | SecureStorage |
+| `blockfrost_api_key` | 测试网 Blockfrost API Key（向后兼容） | SecureStorage |
+| `blockfrost_api_key_mainnet` | 主网 Blockfrost API Key | SecureStorage |
 | `enabled_assets_{walletId}` | 用户启用的资产 unit 列表 | SharedPreferences |
 
 ## 常见修改指引
@@ -112,5 +113,6 @@ screens/ → BlockfrostService（直接调用 submitTx / getPoolInfo / getStakeA
 | 修改地址验证规则 | wallet_service.dart — 修改 validateAddress 方法中的链分支 |
 | 添加新链族的地址检测 | wallet_service.dart — 在 detectChainFamily 中添加新的前缀判断 |
 | 添加新的存储配置项 | storage_service.dart — 添加新的 key 和 getter/setter |
+| 切换网络（测试网 ↔ 主网） | coldwallet-protocol/lib/app_config.dart — 修改 AppConfig.isMainnet（true=主网，false=测试网），两端需同步切换 |
 | 修改手续费计算逻辑 | tx_builder_service.dart / stake_transaction_builder.dart — 修改迭代估算循环，注意 witness set 占位 |
 | 修复 FeeTooSmallUTxO | 检查费用估算是否包含最终签名后的 witness 大小 |

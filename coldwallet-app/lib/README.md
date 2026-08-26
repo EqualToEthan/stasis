@@ -1,6 +1,6 @@
 # coldwallet-app — 离线冷钱包
 
-多链离线冷钱包 Flutter 应用。负责助记词管理、多链地址派生（Cardano + EVM）、二维码/文件扫码签名和交易导出。完全离线运行，所有敏感数据通过 Android Keystore 加密存储。
+多链离线冷钱包 Flutter 应用。负责助记词管理、多链地址派生（Cardano + EVM）、二维码/剪贴板扫码签名和交易导出。完全离线运行，所有敏感数据通过 Android Keystore 加密存储。
 
 ## 模块文档索引
 

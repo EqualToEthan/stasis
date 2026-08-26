@@ -4,15 +4,15 @@ import 'package:bip39_plus/bip39_plus.dart' as bip39;
 import 'package:cardano_dart_types/cardano_dart_types.dart';
 import 'package:cardano_flutter_sdk/cardano_flutter_sdk.dart';
 
-import '../models/chain_config.dart';
 import '../models/wallet_info.dart';
+import 'adapter_registry.dart';
 import 'chain_registry.dart';
 import 'secure_storage_service.dart';
 
 /// 钱包服务（多钱包版）：助记词、地址派生、密钥管理
 ///
 /// 支持最多 5 个钱包，每个钱包独立助记词和可选 BIP-39 密码短语，
-/// 共享全局 PIN 和网络设置。
+/// 共享全局 PIN。网络由 AppConfig.isMainnet 全局控制。
 class WalletService {
   static const int maxWallets = 5;
 
@@ -63,16 +63,16 @@ class WalletService {
   /// 从助记词创建 HD 钱包
   ///
   /// [mnemonic] 12 或 24 个单词的助记词
-  /// [testnet] 是否为测试网，默认 true
   /// [passphrase] BIP-39 密码短语，默认空字符串（不使用）。
   ///   非空时通过 PBKDF2 将助记词+密码短语生成 64 字节种子再派生钱包，
   ///   相同的助记词 + 不同的密码短语会产生完全不同的地址。
+  ///
+  /// 网络由 [AppConfig.isMainnet] 全局控制，不接受参数覆盖。
   Future<CardanoWallet> createWallet(
     String mnemonic, {
-    bool testnet = true,
     String passphrase = '',
   }) async {
-    final network = testnet ? NetworkId.testnet : NetworkId.mainnet;
+    final network = AppConfig.isMainnet ? NetworkId.mainnet : NetworkId.testnet;
     if (passphrase.isEmpty) {
       return WalletFactory.fromMnemonic(
         network,
@@ -90,14 +90,9 @@ class WalletService {
   /// 使用 CIP-1852 路径 m/1852'/1815'/0'/0/0 派生。
   Future<String> deriveAddress(
     String mnemonic, {
-    bool testnet = true,
     String passphrase = '',
   }) async {
-    final wallet = await createWallet(
-      mnemonic,
-      testnet: testnet,
-      passphrase: passphrase,
-    );
+    final wallet = await createWallet(mnemonic, passphrase: passphrase);
     final addrKit = await wallet.getPaymentAddressKit(addressIndex: 0);
     return addrKit.address.bech32Encoded;
   }
@@ -108,14 +103,9 @@ class WalletService {
   /// testnet 前缀为 stake_test，mainnet 前缀为 stake1。
   Future<String> deriveStakeAddress(
     String mnemonic, {
-    bool testnet = true,
     String passphrase = '',
   }) async {
-    final wallet = await createWallet(
-      mnemonic,
-      testnet: testnet,
-      passphrase: passphrase,
-    );
+    final wallet = await createWallet(mnemonic, passphrase: passphrase);
     return wallet.stakeAddress.bech32Encoded;
   }
 
@@ -129,7 +119,7 @@ class WalletService {
     ChainConfig config, {
     String passphrase = '',
   }) async {
-    final adapter = ChainRegistry.adapterFor(config.chainFamily);
+    final adapter = AdapterRegistry.adapterFor(config.chainFamily);
     return adapter.deriveAddress(mnemonic, config, passphrase: passphrase);
   }
 
@@ -149,20 +139,6 @@ class WalletService {
       );
     }
     return result;
-  }
-
-  // ─── 网络设置（全局） ───────────────────────────────────────
-
-  Future<String> getNetwork() async {
-    return await _secureStorage.getCurrentNetwork();
-  }
-
-  Future<void> setNetwork(String network) async {
-    await _secureStorage.setCurrentNetwork(network);
-  }
-
-  Future<bool> isTestnet() async {
-    return (await getNetwork()) != 'mainnet';
   }
 
   // ─── 钱包列表管理 ───────────────────────────────────────────

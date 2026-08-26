@@ -6,16 +6,18 @@
 
 | 子项目 | 说明 | 文档入口 |
 |--------|------|----------|
-| **coldwallet-app** | 离线冷钱包 — 助记词管理、多链地址派生、扫码签名、交易文件导入导出 | [coldwallet-app/lib/README.md](coldwallet-app/lib/README.md) |
-| **coldwallet-watch** | 联网观察钱包 — 查看余额、构建未签名交易、扫码/文件导入导出已签名交易 | [coldwallet-watch/lib/README.md](coldwallet-watch/lib/README.md) |
+| **coldwallet-app** | 离线冷钱包 — 助记词管理、多链地址派生、扫码签名、剪贴板粘贴导入签名 | [coldwallet-app/lib/README.md](coldwallet-app/lib/README.md) |
+| **coldwallet-watch** | 联网观察钱包 — 查看余额、构建未签名交易、扫码/剪贴板导入导出已签名交易 | [coldwallet-watch/lib/README.md](coldwallet-watch/lib/README.md) |
 
-两端通过 JSON 格式交换数据（Cardano: `ColdExport`/`ColdImport`，EVM: `EthColdExport`/`EthColdImport`），传输方式支持二维码和文件导出/导入。详见 [PROTOCOL.md](PROTOCOL.md)。
+两端通过 JSON 格式交换数据（Cardano: `ColdExport`/`ColdImport`，EVM: `EthColdExport`/`EthColdImport`），传输方式支持二维码和剪贴板复制/粘贴。详见 [PROTOCOL.md](PROTOCOL.md)。
 
 ## 网络配置
 
-各链固定为对应测试网，不允许网络切换 UI 或逻辑：
-- Cardano: preview testnet
-- EVM: Sepolia / BSC Testnet / Arbitrum Sepolia / Polygon Amoy / Base Sepolia
+网络由 coldwallet-protocol 中的 `AppConfig.isMainnet` 全局开关统一控制：
+- `isMainnet = false`（默认）：Cardano preview testnet / EVM 各链对应测试网
+- `isMainnet = true`：Cardano mainnet / EVM 各链对应主网
+
+运行时不提供 UI 切换入口，修改全局开关后需重新构建并同步更新两端。详见 [docs/adr/0003-network-switch.md](docs/adr/0003-network-switch.md)。
 
 ## 项目结构
 

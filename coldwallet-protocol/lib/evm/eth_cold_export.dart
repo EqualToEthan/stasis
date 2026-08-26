@@ -1,7 +1,7 @@
 /// EVM 链未签名交易（观察钱包 → 冷钱包）
 ///
 /// 包含 RLP 编码的未签名 EIP-1559 交易 hex、chainId 和摘要信息，
-/// 通过二维码或文件传递给冷钱包进行离线签名。
+/// 通过二维码或剪贴板传递给冷钱包进行离线签名。
 class EthColdExport {
   final int version;
   final String type;

@@ -42,8 +42,6 @@ dependencies:
   pointycastle: ^4.0.0
   mobile_scanner: ^7.4.0
   qr_flutter: ^4.1.0
-  path_provider: ^2.1.6
-  file_picker: ^12.0.0-beta.1
   web3dart: ^2.7.3
   coldwallet_protocol:
     path: ../coldwallet-protocol

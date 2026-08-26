@@ -147,6 +147,7 @@ class BlockfrostService {
   /// 返回 JSON 包含：
   /// - `active` (bool): stake key 是否已注册
   /// - `pool_id` (String?): 当前委托的 pool
+  /// - `drep_id` (String?): 当前委托的 DRep（Conway era）
   /// - `withdrawable_amount` (String): 可提取的奖励 lovelace
   /// - `controlled_amount` (String): 控制的总 ADA lovelace
   Future<Map<String, dynamic>> getStakeAccountInfo(String stakeAddress) async {

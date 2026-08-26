@@ -24,12 +24,6 @@ class FakeStorageService implements StorageService {
   }
 
   @override
-  Future<String> getCurrentNetwork() async => 'preview';
-
-  @override
-  Future<void> setCurrentNetwork(String network) async {}
-
-  @override
   Future<String?> getBlockfrostApiKey() async => null;
 
   @override

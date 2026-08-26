@@ -1,17 +1,16 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../widgets/qr_display.dart';
 
 /// 导出未签名交易页面
 ///
-/// 将构建好的未签名交易以二维码、JSON 文本和文件三种方式导出，
-/// 供冷钱包端离线签名。提供“下一步：导入签名结果”引导完成闭环。
+/// 将构建好的未签名交易以二维码和 JSON 文本两种方式导出，
+/// 供冷钱包端离线签名。交易详情（发送方、接收方、金额、手续费等）
+/// 在 coldwallet-app 签名页展示，本页只保留最简导出入口。
 class ExportTxScreen extends StatelessWidget {
   const ExportTxScreen({super.key});
 
@@ -29,47 +28,24 @@ class ExportTxScreen extends StatelessWidget {
       }
     }
 
-    /// 将未签名交易 JSON 保存到应用文档目录
-    ///
-    /// 如果当前运行的应用未重新构建安装，path_provider 插件可能未注册，
-    /// 会抛出 [MissingPluginException]，此时提示用户重新安装应用。
-    Future<void> saveFile() async {
-      try {
-        final dir = await getApplicationDocumentsDirectory();
-        final file = File(
-          '${dir.path}/unsigned_tx_${DateTime.now().millisecondsSinceEpoch}.json',
-        );
-        await file.writeAsString(jsonStr);
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('文件已保存: ${file.path}')));
-        }
-      } on MissingPluginException catch (_) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('文件保存插件未初始化，请卸载应用后重新安装再试'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red),
-          );
-        }
-      }
-    }
-
     return Scaffold(
       appBar: AppBar(title: const Text('导出未签名交易')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('二维码', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              '请使用冷钱包端扫描下方二维码，或复制 JSON 文本进行签名',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              '二维码',
+              style: TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 12),
             Center(child: QRDisplay(data: jsonStr)),
             const SizedBox(height: 24),
@@ -87,24 +63,13 @@ class ExportTxScreen extends StatelessWidget {
               child: SelectableText(jsonStr, maxLines: 5),
             ),
             const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: copyJson,
-                    icon: const Icon(Icons.copy),
-                    label: const Text('复制 JSON'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: saveFile,
-                    icon: const Icon(Icons.save),
-                    label: const Text('保存文件'),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: copyJson,
+                icon: const Icon(Icons.copy),
+                label: const Text('复制 JSON'),
+              ),
             ),
             const SizedBox(height: 16),
             SizedBox(

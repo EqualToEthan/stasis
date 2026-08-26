@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../models/watch_wallet.dart';
 
 /// 收款页面
@@ -29,7 +30,7 @@ class ReceiveScreen extends StatelessWidget {
             children: [
               const SizedBox(height: 16),
               Text(
-                '仅接收 ${wallet.network.toUpperCase()} 网络的资产',
+                '仅接收 ${(AppConfig.isMainnet ? 'mainnet' : 'preview').toUpperCase()} 网络的资产',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),

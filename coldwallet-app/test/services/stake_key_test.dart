@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import 'package:coldwallet_app/services/wallet_service.dart';
 
 void main() {
+  // 每个测试后重置为测试网，防止主网状态泄漏
+  tearDown(() => AppConfig.isMainnet = false);
   group('WalletService.deriveStakeAddress', () {
     // 标准 BIP-39 测试向量（12 词），与 evm_adapter_test 共用
     const testMnemonic =
@@ -12,10 +15,7 @@ void main() {
       'returns stake address starting with stake_test for testnet',
       () async {
         final service = WalletService();
-        final stakeAddress = await service.deriveStakeAddress(
-          testMnemonic,
-          testnet: true,
-        );
+        final stakeAddress = await service.deriveStakeAddress(testMnemonic);
 
         expect(stakeAddress, startsWith('stake_test'));
         expect(stakeAddress.length, greaterThan(40));
@@ -26,11 +26,9 @@ void main() {
     test(
       'returns stake address starting with stake for mainnet',
       () async {
+        AppConfig.isMainnet = true;
         final service = WalletService();
-        final stakeAddress = await service.deriveStakeAddress(
-          testMnemonic,
-          testnet: false,
-        );
+        final stakeAddress = await service.deriveStakeAddress(testMnemonic);
 
         expect(stakeAddress, startsWith('stake1'));
         expect(stakeAddress, isNot(startsWith('stake_test')));

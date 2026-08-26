@@ -8,7 +8,6 @@ import 'package:pointycastle/export.dart';
 
 import 'package:bip39_plus/bip39_plus.dart' as bip39;
 import 'package:coldwallet_protocol/coldwallet_protocol.dart';
-import '../../models/chain_config.dart';
 import '../../models/sign_result.dart';
 import 'chain_adapter.dart';
 
@@ -26,11 +25,7 @@ class CardanoAdapter implements ChainAdapter {
     ChainConfig config, {
     String passphrase = '',
   }) async {
-    final wallet = await _createCardanoWallet(
-      mnemonic,
-      config.network != 'mainnet',
-      passphrase: passphrase,
-    );
+    final wallet = await _createCardanoWallet(mnemonic, passphrase: passphrase);
     final addrKit = await wallet.getPaymentAddressKit(addressIndex: 0);
     return addrKit.address.bech32Encoded;
   }
@@ -49,13 +44,8 @@ class CardanoAdapter implements ChainAdapter {
     String passphrase = '',
   }) async {
     final export = coldExport as ColdExport;
-    final isTestnet = export.network != 'mainnet';
 
-    final wallet = await _createCardanoWallet(
-      mnemonic,
-      isTestnet,
-      passphrase: passphrase,
-    );
+    final wallet = await _createCardanoWallet(mnemonic, passphrase: passphrase);
 
     final tx = CardanoTransaction.deserializeFromHex(export.txCbor);
 
@@ -98,6 +88,11 @@ class CardanoAdapter implements ChainAdapter {
         ) ??
         false;
 
+    // 从交易体中检测当前钱包 stake key 的 DRep 委托证书。
+    // Conway 时代奖励提取需要 DRep 委托；把 dRepDelegation 传给 SDK
+    // 可确保签名 bundle 与交易体语义一致。
+    final Drep? dRepDelegation = _extractDRepDelegation(tx, wallet);
+
     final bundle = TxSigningBundle(
       receiveAddressBech32: wallet.firstAddress.bech32Encoded,
       networkId: wallet.networkId,
@@ -110,7 +105,7 @@ class CardanoAdapter implements ChainAdapter {
             stakeDelegationPoolId: delegationPoolId,
             stakeDeregistration: hasDeregistration,
             dRepDeregistration: false,
-            dRepDelegation: null,
+            dRepDelegation: dRepDelegation,
             dRepRegistration: null,
             dRepUpdate: null,
             authorizeConstitutionalCommitteeHot: null,
@@ -126,7 +121,7 @@ class CardanoAdapter implements ChainAdapter {
       stakeDelegationPoolId: delegationPoolId,
       stakeDeregistration: hasDeregistration,
       dRepDeregistration: false,
-      dRepDelegation: null,
+      dRepDelegation: dRepDelegation,
       dRepRegistration: null,
       dRepUpdate: null,
       authorizeConstitutionalCommitteeHot: null,
@@ -139,16 +134,38 @@ class CardanoAdapter implements ChainAdapter {
     return signedBundle.txsData[0].nweSignatures;
   }
 
+  /// 从交易体中提取与当前钱包 stake key 匹配的 DRep 委托。
+  ///
+  /// 仅当 [tx.body.certs] 中存在针对 [wallet.stakeAddress] 的
+  /// [Certificate_VoteDelegation] 时才返回其 [Drep]，否则返回 null。
+  Drep? _extractDRepDelegation(CardanoTransaction tx, CardanoWallet wallet) {
+    final certs = tx.body.certs?.certificates;
+    if (certs == null || certs.isEmpty) return null;
+
+    final stakeCredBytes = wallet.stakeAddress.credentialsBytes;
+    for (final cert in certs) {
+      if (cert is Certificate_VoteDelegation) {
+        final credBytes = cert.stakeCredential.vKeyHash;
+        if (credBytes.length == stakeCredBytes.length &&
+            credBytes.every((b) => b == stakeCredBytes[credBytes.indexOf(b)])) {
+          return cert.dRep;
+        }
+      }
+    }
+    return null;
+  }
+
   /// 创建 CardanoWallet，支持可选 BIP-39 密码短语
   ///
   /// 当 passphrase 非空时，通过 BIP-39 mnemonic + passphrase 生成种子再创建钱包，
   /// 相同助记词 + 不同密码短语会产生完全不同的地址。
+  ///
+  /// 网络由 [AppConfig.isMainnet] 全局控制。
   Future<CardanoWallet> _createCardanoWallet(
-    String mnemonic,
-    bool isTestnet, {
+    String mnemonic, {
     String passphrase = '',
   }) async {
-    final network = isTestnet ? NetworkId.testnet : NetworkId.mainnet;
+    final network = AppConfig.isMainnet ? NetworkId.mainnet : NetworkId.testnet;
     if (passphrase.isEmpty) {
       return WalletFactory.fromMnemonic(
         network,

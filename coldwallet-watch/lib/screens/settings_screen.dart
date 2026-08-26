@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
+
 import '../services/storage_service.dart';
 
 /// 设置页面
 ///
-/// 显示当前网络信息（已固定为 Preview 测试网），
-/// 提供 Blockfrost API Key 的配置入口。
+/// 显示当前网络信息（由 coldwallet-protocol 中 `AppConfig.isMainnet`
+/// 全局开关决定），提供 Blockfrost API Key 的配置入口。
+/// 网络切换不在运行时 UI 中进行，修改全局开关后两端同步生效。
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  /// 可选的 StorageService 注入，主要用于测试。
+  final StorageService? storageService;
+
+  const SettingsScreen({super.key, this.storageService});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -25,7 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final storage = await StorageService.create();
+    final storage = widget.storageService ?? await StorageService.create();
     final apiKey = await storage.getBlockfrostApiKey();
     if (!mounted) return;
     setState(() {
@@ -59,7 +65,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             const Text('网络', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text('Preview 测试网（已固定）'),
+            Text(
+              AppConfig.isMainnet ? 'Mainnet 主网' : 'Preview 测试网',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '全局网络开关控制，修改 AppConfig.isMainnet 后两端同步生效。',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+            ),
             const SizedBox(height: 24),
             const Text(
               'Blockfrost API Key',

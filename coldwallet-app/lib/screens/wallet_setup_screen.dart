@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/wallet_info.dart';
-import '../models/chain_config.dart';
 import '../services/chain_registry.dart';
 import '../services/wallet_service.dart';
 import 'dice_entropy_screen.dart';
@@ -242,11 +241,7 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
               Navigator.pop(ctx);
               if (isNew) {
                 // 新建/掷骰子流程：密码短语尚未输入，显示密码短语对话框
-                _showPassphraseDialog(
-                  mnemonic,
-                  name: name,
-                  isNew: isNew,
-                );
+                _showPassphraseDialog(mnemonic, name: name, isNew: isNew);
               } else {
                 // 导入流程：密码短语已在导入表单中输入，直接进入助记词确认
                 _showMnemonicConfirm(
@@ -776,10 +771,9 @@ class _WalletSetupScreenState extends State<WalletSetupScreen> {
               child: Text(
                 '已达钱包数量上限（${WalletService.maxWallets}个），不能再新增',
                 textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.grey),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey),
               ),
             ),
           ],

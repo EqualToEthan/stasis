@@ -46,6 +46,50 @@ void main() {
       expect(restored.poolKeyHash, isNull);
     });
 
+    test('voteDelegation abstain toJson/fromJson roundtrip', () {
+      const cert = Certificate(
+        type: CertificateType.voteDelegation,
+        stakeCredential: 'abc123def456',
+        dRepType: DRepType.abstain,
+      );
+      final json = cert.toJson();
+      final restored = Certificate.fromJson(json);
+
+      expect(restored.type, CertificateType.voteDelegation);
+      expect(restored.stakeCredential, 'abc123def456');
+      expect(restored.dRepType, DRepType.abstain);
+      expect(restored.dRepHash, isNull);
+      // 可选字段为 null 时应省略，不污染 JSON
+      expect(json.containsKey('poolKeyHash'), isFalse);
+      expect(json.containsKey('dRepHash'), isFalse);
+      expect(json['dRepType'], 'abstain');
+    });
+
+    test('voteDelegation keyHash roundtrip with dRepHash', () {
+      const cert = Certificate(
+        type: CertificateType.voteDelegation,
+        stakeCredential: 'abc123',
+        dRepType: DRepType.keyHash,
+        dRepHash: 'd5b18fd6a48c0de1a2b3c4d5e6f70819',
+      );
+      final restored = Certificate.fromJson(cert.toJson());
+
+      expect(restored.type, CertificateType.voteDelegation);
+      expect(restored.dRepType, DRepType.keyHash);
+      expect(restored.dRepHash, 'd5b18fd6a48c0de1a2b3c4d5e6f70819');
+    });
+
+    test('fromJson with unknown dRepType throws StateError', () {
+      expect(
+        () => Certificate.fromJson({
+          'type': 'voteDelegation',
+          'stakeCredential': 'x',
+          'dRepType': 'unknown',
+        }),
+        throwsA(isA<StateError>()),
+      );
+    });
+
     test('fromJson with unknown type throws StateError', () {
       expect(
         () => Certificate.fromJson({'type': 'unknown', 'stakeCredential': 'x'}),

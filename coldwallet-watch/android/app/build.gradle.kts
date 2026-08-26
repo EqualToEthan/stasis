@@ -37,6 +37,18 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // Release 产物命名为「应用名-v版本号.apk」，冷钱包 APK 靠手动传输分发，
+    // 文件名带版本号是防装旧版的唯一线索；debug 构建保持默认名
+    applicationVariants.all {
+        outputs.all {
+            if (buildType.name == "release") {
+                val output =
+                    this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+                output.outputFileName = "Stasis-Link-v${versionName}.apk"
+            }
+        }
+    }
 }
 
 flutter {

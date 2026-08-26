@@ -7,7 +7,6 @@ import 'package:pointycastle/export.dart';
 import 'package:web3dart/crypto.dart' as web3crypto;
 import 'package:web3dart/web3dart.dart';
 
-import '../../models/chain_config.dart';
 import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../../models/sign_result.dart';
 import 'chain_adapter.dart';

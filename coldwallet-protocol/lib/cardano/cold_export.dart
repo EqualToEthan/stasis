@@ -3,7 +3,7 @@ import 'certificate.dart';
 /// 观察钱包导出给冷钱包的数据（未签名交易）
 ///
 /// 包含交易 CBOR、网络标识和摘要信息，
-/// 通过二维码或文件传递给冷钱包进行离线签名。
+/// 通过二维码或剪贴板传递给冷钱包进行离线签名。
 /// 质押交易额外包含 [certificates]、[withdrawals]、[stakeKeyPath]。
 class ColdExport {
   final int version;

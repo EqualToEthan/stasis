@@ -12,10 +12,9 @@ void main() {
       (tester) async {
         await tester.pumpWidget(const MaterialApp(home: ImportSignedScreen()));
 
-        // 进入页面后不应直接打开摄像头，而应显示三种导入方式供选择。
+        // 进入页面后不应直接打开摄像头，而应显示两种导入方式供选择。
         expect(find.byType(QRScanner), findsNothing);
         expect(find.text('扫描二维码'), findsOneWidget);
-        expect(find.text('从文件导入'), findsOneWidget);
         expect(find.text('粘贴 JSON'), findsOneWidget);
       },
     );
@@ -67,7 +66,6 @@ void main() {
 
       expect(find.byType(QRScanner), findsNothing);
       expect(find.text('扫描二维码'), findsOneWidget);
-      expect(find.text('从文件导入'), findsOneWidget);
       expect(find.text('粘贴 JSON'), findsOneWidget);
     });
   });

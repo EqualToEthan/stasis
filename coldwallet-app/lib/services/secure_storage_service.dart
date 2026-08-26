@@ -16,14 +16,12 @@ import '../models/wallet_info.dart';
 /// - `wallet_list`            钱包元数据列表 JSON
 /// - `wallet_{id}_mnemonic`   按 ID 隔离的助记词
 /// - `current_wallet_id`      当前选中钱包 ID
-/// - `current_network`        全局网络 mainnet / testnet
 /// - `wallet_pin_hash`        全局 PIN（PBKDF2 哈希）
 /// - `wallet_{id}_passphrase` 按 ID 隔离的 BIP-39 密码短语
 class SecureStorageService {
   static const _walletListKey = 'wallet_list';
   static const _pinHashKey = 'wallet_pin_hash';
   static const _currentWalletIdKey = 'current_wallet_id';
-  static const _currentNetworkKey = 'current_network';
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
@@ -69,16 +67,6 @@ class SecureStorageService {
 
   Future<String?> getCurrentWalletId() async {
     return await _storage.read(key: _currentWalletIdKey);
-  }
-
-  // ─── 全局网络 ──────────────────────────────────────────────
-
-  Future<void> setCurrentNetwork(String network) async {
-    await _storage.write(key: _currentNetworkKey, value: network);
-  }
-
-  Future<String> getCurrentNetwork() async {
-    return await _storage.read(key: _currentNetworkKey) ?? 'testnet';
   }
 
   // ─── PIN（全局，PBKDF2-HMAC-SHA256 哈希存储） ─────────────
@@ -159,7 +147,7 @@ class SecureStorageService {
 
   // ─── 清空 ──────────────────────────────────────────────────
 
-  /// 清空所有存储数据（含所有钱包助记词、密码短语、PIN、列表、网络设置）
+  /// 清空所有存储数据（含所有钱包助记词、密码短语、PIN、列表）
   Future<void> clearAll() async {
     await _storage.deleteAll();
   }

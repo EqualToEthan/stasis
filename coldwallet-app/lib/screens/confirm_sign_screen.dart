@@ -57,7 +57,8 @@ class _ConfirmSignScreenState extends State<ConfirmSignScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSigning = false);
-      _showError('签名失败: $e');
+      final message = e is WalletMismatchException ? e.message : '签名失败: $e';
+      _showError(message);
     }
   }
 

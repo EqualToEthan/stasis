@@ -7,7 +7,7 @@
 两端通过 JSON 格式交换数据，传输方式支持：
 
 - **二维码**：适合小数据量的快速传输
-- **文件导出/导入**：适合大数据量或无摄像头场景
+- **剪贴板复制/粘贴**：适合无法扫码或二维码容量不足的场景
 
 ## 完整交易流程
 
@@ -87,13 +87,15 @@
 | `quantity` | `String` | 是 | 数量（最小单位，字符串表示） |
 | `displayName` | `String?` | 否 | 可选的显示名称 |
 
-### Certificate — 质押证书
+### Certificate — 质押/治理证书
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `type` | `String` | 是 | 证书类型：`stakeRegistration` / `stakeDelegation` / `stakeDeregistration` |
+| `type` | `String` | 是 | 证书类型：`stakeRegistration` / `stakeDelegation` / `stakeDeregistration` / `voteDelegation` |
 | `stakeCredential` | `String` | 是 | blake2b_224(stake public key)，28 字节 hex 编码 |
 | `poolKeyHash` | `String?` | 否 | 委托目标 pool key hash（仅 `stakeDelegation`） |
+| `dRepType` | `String?` | 否 | DRep 委托目标类型：`abstain` / `noConfidence` / `keyHash` / `scriptHash`（仅 `voteDelegation`） |
+| `dRepHash` | `String?` | 否 | DRep key/script hash，28 字节 hex（仅 `dRepType` 为 `keyHash` / `scriptHash`） |
 
 ```json
 {
@@ -103,9 +105,21 @@
 }
 ```
 
+```json
+{
+  "type": "voteDelegation",
+  "stakeCredential": "a1b2c3d4e5f6...",
+  "dRepType": "abstain"
+}
+```
+
+> DRep 弃权委托证书随委托交易自动附带（见 ADR 0004）：Conway 时代提取奖励
+> 要求 stake key 在提取交易**之前**就已弃权（或委托 DRep），ledger 对 withdrawal
+> 的检查用证书应用前的账户状态快照，因此弃权证书不能与奖励提取同笔交易。
+
 ### 质押交易示例
 
-委托交易（注册 + 委托合并）：
+委托交易（注册 + 委托 + DRep 弃权合并）：
 
 ```json
 {
@@ -122,7 +136,8 @@
   },
   "certificates": [
     { "type": "stakeRegistration", "stakeCredential": "a1b2c3..." },
-    { "type": "stakeDelegation", "stakeCredential": "a1b2c3...", "poolKeyHash": "pool1abc..." }
+    { "type": "stakeDelegation", "stakeCredential": "a1b2c3...", "poolKeyHash": "pool1abc..." },
+    { "type": "voteDelegation", "stakeCredential": "a1b2c3...", "dRepType": "abstain" }
   ],
   "stakeKeyPath": "m/1852'/1815'/0'/2/0"
 }
@@ -196,13 +211,13 @@ coldwallet-app 导出时生成的 QR 即为此格式，coldwallet-watch 扫码�
 - ColdExport → 冷端：coldwallet-watch 将 JSON 编码为二维码，coldwallet-app 扫码读取
 - ColdImport → 热端：coldwallet-app 将 JSON 编码为二维码，coldwallet-watch 扫码读取
 
-> 注意：当 CBOR 数据较大时，二维码可能过于密集，此时建议使用文件传输。
+> 注意：当 CBOR 数据较大时，二维码可能过于密集，此时建议使用剪贴板复制完整 JSON 进行传输。
 
-### 文件传输
+### 剪贴板传输
 
-- 导出端将 JSON 写入 `.json` 文件
-- 导入端通过文件选择器读取并解析 JSON
-- 文件命名建议：`cold-export-{timestamp}.json` / `cold-import-{timestamp}.json`
+- 导出端将 JSON 完整复制到系统剪贴板
+- 导入端从剪贴板读取并解析 JSON
+- 两端均提供明确的「复制 JSON」和「粘贴 JSON」按钮
 
 ## 版本兼容
 
@@ -212,10 +227,12 @@ coldwallet-app 导出时生成的 QR 即为此格式，coldwallet-watch 扫码�
 
 ## 源码位置
 
-| 数据结构 | coldwallet-app | coldwallet-watch |
-|----------|---------------|-----------------|
-| ColdExport | `lib/models/cold_export.dart` | `lib/models/cold_export.dart` |
-| ColdImport | `lib/models/cold_import.dart` | `lib/models/cold_import.dart` |
-| Certificate | `lib/models/certificate.dart` | `lib/models/certificate.dart` |
+| 数据结构 | 定义位置 |
+|----------|----------|
+| ColdExport / ColdImport | `coldwallet-protocol/lib/cardano/` |
+| EthColdExport / EthColdImport | `coldwallet-protocol/lib/evm/` |
+| Certificate / CertificateType / DRepType | `coldwallet-protocol/lib/cardano/certificate.dart` |
+| AppConfig / ChainConfig / ChainRegistry | `coldwallet-protocol/lib/` |
 
-> 两端的模型定义保持一致，修改时需要同步更新。
+> 两端 App 均通过 `package:coldwallet_protocol` 共享同一套模型定义，修改时只需更新
+> coldwallet-protocol 并同步本文档。

@@ -1,18 +1,17 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../services/blockfrost_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/info_card.dart';
 import '../widgets/qr_scanner.dart';
 
 /// 导入已签名交易页面
 ///
-/// 支持三种导入方式：扫描二维码、从文件导入、粘贴 JSON。
+/// 支持两种导入方式：扫描二维码、粘贴 JSON。
 /// 解析 ColdImport 数据后通过 Blockfrost 提交到链上。
 class ImportSignedScreen extends StatefulWidget {
   const ImportSignedScreen({super.key});
@@ -31,13 +30,13 @@ class _ImportSignedScreenState extends State<ImportSignedScreen> {
       final coldImport = ColdImport.fromJson(data);
       await _confirmAndSubmit(coldImport);
     } catch (e) {
-      _showError('解析签名文件失败: $e');
+      _showError('解析签名数据失败: $e');
     }
   }
 
   /// 显示确认对话框，用户确认后才提交交易到链上。
   ///
-  /// 提交链上交易是不可逆操作，所有导入方式（扫码、文件、粘贴）
+  /// 提交链上交易是不可逆操作，所有导入方式（扫码、粘贴）
   /// 在提交前都必须经过用户确认。
   Future<void> _confirmAndSubmit(ColdImport coldImport) async {
     final txCborPreview = coldImport.txCbor.length > 64
@@ -50,16 +49,43 @@ class _ImportSignedScreenState extends State<ImportSignedScreen> {
         title: const Text('确认导入签名结果'),
         content: SingleChildScrollView(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('TxHash: ${coldImport.txHash}'),
-              const SizedBox(height: 8),
-              Text('TxCbor: $txCborPreview'),
+              InfoCard(
+                title: '交易哈希',
+                value: coldImport.txHash,
+                icon: Icons.tag,
+              ),
+              const SizedBox(height: 12),
+              InfoCard(
+                title: '签名数据',
+                value: txCborPreview,
+                icon: Icons.data_object,
+              ),
               const SizedBox(height: 16),
-              const Text(
-                '提交后将向链上广播此交易，操作不可撤销。',
-                style: TextStyle(color: Colors.orange),
+              Card(
+                color: Theme.of(context).colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '提交后将向链上广播此交易，操作不可撤销。',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -87,7 +113,7 @@ class _ImportSignedScreenState extends State<ImportSignedScreen> {
     try {
       final storage = await StorageService.create();
       final apiKey = await storage.getBlockfrostApiKey();
-      final network = await storage.getCurrentNetwork();
+      final network = AppConfig.isMainnet ? 'mainnet' : 'preview';
       if (apiKey == null || apiKey.isEmpty) {
         _showError('请先设置 Blockfrost API Key');
         return;
@@ -128,18 +154,6 @@ class _ImportSignedScreenState extends State<ImportSignedScreen> {
     }
   }
 
-  Future<void> _pickFile() async {
-    final result = await FilePicker.pickFile(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
-    if (result == null) return;
-    final path = result.path;
-    if (path == null) return;
-    final content = await File(path).readAsString();
-    await _parseAndSubmit(content.trim());
-  }
-
   Future<void> _pasteJson() async {
     final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
     final text = clipboard?.text;
@@ -171,7 +185,7 @@ class _ImportSignedScreenState extends State<ImportSignedScreen> {
 
   /// 导入方式选择面板
   ///
-  /// 默认显示三种导入方式，避免进入页面直接打开摄像头。
+  /// 默认显示两种导入方式，避免进入页面直接打开摄像头。
   Widget _buildMethodSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -189,13 +203,6 @@ class _ImportSignedScreenState extends State<ImportSignedScreen> {
           title: '扫描二维码',
           subtitle: '扫描冷钱包端展示的签名结果二维码',
           onTap: () => setState(() => _showScanner = true),
-        ),
-        const SizedBox(height: 12),
-        _ImportMethodCard(
-          icon: Icons.folder_open,
-          title: '从文件导入',
-          subtitle: '选择 .json 签名文件',
-          onTap: _pickFile,
         ),
         const SizedBox(height: 12),
         _ImportMethodCard(

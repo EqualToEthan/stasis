@@ -2,6 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:coldwallet_app/services/chain_registry.dart';
 
 void main() {
+  // 每个测试后重置为测试网，防止主网状态泄漏
+  tearDown(() => AppConfig.isMainnet = false);
+
   group('ChainRegistry.resolveChainId', () {
     test('returns cardano-preview when chainId field absent', () {
       final json = <String, dynamic>{'type': 'unsigned-tx'};
@@ -101,6 +104,64 @@ void main() {
       expect(msg, isNotNull);
       expect(msg!, contains('Ethereum Sepolia'));
       expect(msg, contains('Cardano Preview'));
+    });
+  });
+
+  group('ChainRegistry 配置组切换', () {
+    test('默认测试网: resolveChainId 返回 cardano-preview', () {
+      expect(ChainRegistry.resolveChainId({}), 'cardano-preview');
+    });
+
+    test('主网模式: resolveChainId 返回 cardano-mainnet', () {
+      AppConfig.isMainnet = true;
+      expect(ChainRegistry.resolveChainId({}), 'cardano-mainnet');
+    });
+
+    test('默认测试网: getConfig 返回测试网配置', () {
+      expect(ChainRegistry.getConfig('cardano-preview'), isNotNull);
+      expect(ChainRegistry.getConfig('cardano-mainnet'), isNull);
+    });
+
+    test('主网模式: getConfig 返回主网配置', () {
+      AppConfig.isMainnet = true;
+      expect(ChainRegistry.getConfig('cardano-mainnet'), isNotNull);
+      expect(ChainRegistry.getConfig('cardano-preview'), isNull);
+    });
+
+    test('默认测试网: allConfigs 返回测试网配置', () {
+      final configs = ChainRegistry.allConfigs();
+      expect(configs.any((c) => c.chainId == 'cardano-preview'), isTrue);
+      expect(configs.any((c) => c.chainId == 'evm-11155111'), isTrue);
+      expect(configs.any((c) => c.chainId == 'cardano-mainnet'), isFalse);
+    });
+
+    test('主网模式: allConfigs 返回主网配置', () {
+      AppConfig.isMainnet = true;
+      final configs = ChainRegistry.allConfigs();
+      expect(configs.any((c) => c.chainId == 'cardano-mainnet'), isTrue);
+      expect(configs.any((c) => c.chainId == 'evm-1'), isTrue);
+      expect(configs.any((c) => c.chainId == 'cardano-preview'), isFalse);
+    });
+
+    test('默认测试网: configsForFamily(evm) 返回 5 条测试网配置', () {
+      final evmConfigs = ChainRegistry.configsForFamily('evm');
+      expect(evmConfigs.length, 5);
+      expect(evmConfigs.any((c) => c.chainId == 'evm-11155111'), isTrue);
+    });
+
+    test('主网模式: configsForFamily(evm) 返回 5 条主网配置', () {
+      AppConfig.isMainnet = true;
+      final evmConfigs = ChainRegistry.configsForFamily('evm');
+      expect(evmConfigs.length, 5);
+      expect(evmConfigs.any((c) => c.chainId == 'evm-1'), isTrue);
+    });
+
+    test('主网模式: mismatchMessage 使用主网链名', () {
+      AppConfig.isMainnet = true;
+      final msg = ChainRegistry.mismatchMessage('cardano-mainnet', 'evm-1');
+      expect(msg, isNotNull);
+      expect(msg!, contains('Cardano Mainnet'));
+      expect(msg, contains('Ethereum'));
     });
   });
 }

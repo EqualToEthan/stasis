@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../services/chain_registry.dart';
@@ -12,7 +10,7 @@ import 'tx_detail_screen.dart';
 
 /// 冷钱包首页
 ///
-/// 展示钱包选择器、扫码签名入口、文件导入入口和钱包管理入口。
+/// 展示钱包选择器、扫码签名入口、剪贴板导入入口和钱包管理入口。
 /// 无钱包时引导用户创建第一个钱包。
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -128,9 +126,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildActionButton(
-                    icon: Icons.file_open,
-                    label: '导入签名',
-                    description: '从文件导入未签名交易',
+                    icon: Icons.paste,
+                    label: '粘贴导入',
+                    description: '粘贴 JSON 导入未签名交易',
                     onPressed: _hasWallets
                         ? () => _showImportDialog(context)
                         : null,
@@ -159,29 +157,13 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('导入未签名交易'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            OutlinedButton.icon(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await _pickAndImportFile();
-              },
-              icon: const Icon(Icons.folder_open),
-              label: const Text('从文件导入'),
-            ),
-            const SizedBox(height: 12),
-            const Text('或粘贴 JSON 数据：'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: controller,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                hintText: '粘贴 ColdExport JSON',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
+        content: TextField(
+          controller: controller,
+          maxLines: 6,
+          decoration: const InputDecoration(
+            hintText: '粘贴 ColdExport / EthColdExport JSON',
+            border: OutlineInputBorder(),
+          ),
         ),
         actions: [
           TextButton(
@@ -198,26 +180,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _pickAndImportFile() async {
-    try {
-      final file = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: ['json', 'txt', 'cbor'],
-      );
-      if (file == null) return;
-      final path = file.path;
-      if (path == null) return;
-      final content = await File(path).readAsString();
-      _parseAndNavigate(content.trim());
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('读取文件失败: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
   }
 
   void _parseAndNavigate(String jsonStr) {

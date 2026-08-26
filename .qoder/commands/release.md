@@ -24,7 +24,9 @@ description: 构建 Release APK。可选参数：app / watch，不指定则两�
 
 ## 构建产物
 
+APK 文件名由各子项目 `android/app/build.gradle.kts` 的输出命名配置生成（应用名-v版本号，版本号取自 pubspec.yaml 的 version；debug 构建保持默认名 app-debug.apk）：
+
 | 子项目 | APK 路径 |
 |--------|--------|
-| coldwallet-app | `coldwallet-app/build/app/outputs/flutter-apk/app-release.apk` |
-| coldwallet-watch | `coldwallet-watch/build/app/outputs/flutter-apk/app-release.apk` |
+| coldwallet-app | `coldwallet-app/build/app/outputs/flutter-apk/Stasis-v{versionName}.apk`（如 `Stasis-v1.0.0.apk`） |
+| coldwallet-watch | `coldwallet-watch/build/app/outputs/flutter-apk/Stasis-Link-v{versionName}.apk`（如 `Stasis-Link-v1.0.0.apk`） |

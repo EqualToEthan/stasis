@@ -1,13 +1,13 @@
 # ColdWallet App — Cardano 离线冷钱包
 
-完全离线的 Cardano 冷钱包 Flutter 应用。通过二维码或文件与联网端（coldwallet-watch）交互，完成交易离线签名。
+完全离线的 Cardano 冷钱包 Flutter 应用。通过二维码或剪贴板与联网端（coldwallet-watch）交互，完成交易离线签名。
 
 ## 功能特性
 
 - 多钱包管理（最多 5 个，独立助记词）
 - 助记词生成（安全随机 / 骰子熵）与导入
 - CIP-1852 地址派生（m/1852'/1815'/0'/0/0）
-- 二维码扫码签名 & 文件导入签名
+- 二维码扫码签名 & 剪贴板粘贴导入签名
 - PIN 验证保护签名操作
 - Android Keystore 加密存储所有敏感数据
 
@@ -26,7 +26,7 @@ lib/
 
 | 路由 | 页面 | 说明 |
 |------|------|------|
-| `/` | HomeScreen | 首页，钱包选择、扫码签名、文件导入入口 |
+| `/` | HomeScreen | 首页，钱包选择、扫码签名、粘贴导入入口 |
 | `/wallet-setup` | WalletSetupScreen | 钱包管理（创建/导入/备份/删除） |
 | `/scan-tx` | ScanTxScreen | 扫描交易二维码 |
 

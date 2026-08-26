@@ -10,8 +10,12 @@ import 'blockfrost_service.dart';
 
 /// 质押交易构建器
 ///
-/// 构建 Cardano 质押相关的未签名交易：委托（注册+委托合并）、提取奖励、解除注册。
+/// 构建 Cardano 质押相关的未签名交易：委托（注册+委托+弃权合并）、提取奖励、解除注册。
 /// 所有方法返回 [ColdExport]，可导出给冷钱包签名。
+///
+/// Conway 时代提取奖励要求 stake key 在交易之前就已委托给 DRep（或弃权）；
+/// ledger 对 withdrawal 的 DRep 检查用证书应用前的账户状态快照，因此弃权证书
+/// 不能与 withdrawal 同笔交易（见 ADR 0004），而是随委托交易自动附带。
 class StakeTransactionBuilder {
   final BlockfrostService _blockfrost;
 
@@ -20,9 +24,12 @@ class StakeTransactionBuilder {
 
   StakeTransactionBuilder(this._blockfrost);
 
-  /// 构建委托交易（自动注册 stake key + 委托给 pool）
+  /// 构建委托交易（自动注册 stake key + 委托给 pool + DRep 弃权）
   ///
   /// 如果 stake key 尚未注册，会同时包含 stakeRegistration 证书。
+  /// 始终附带 voteDelegation（abstain）证书——Conway 时代提取奖励的前置条件，
+  /// 随委托交易一并签名可把全流程签名次数降到链上规则下限 2 次（ADR 0004）。
+  /// 对已弃权账户重复弃权是幂等操作，无链上副作用。
   /// [fromAddress] 支付地址（用于选择 UTxO 和找零）
   /// [stakeAddress] stake address（bech32 格式）
   /// [poolIdBech32] pool ID（bech32 格式，如 pool1abc...）
@@ -50,7 +57,7 @@ class StakeTransactionBuilder {
     final stakeCredential = Credential(CredType.ADDR_KEY_HASH, stakeCredBytes);
     final poolId = StakePoolId.fromBech32PoolId(poolIdBech32);
 
-    // 构建证书列表
+    // 构建证书列表：注册（如需）+ pool 委托 + DRep 弃权
     final certs = <Certificate>[];
     if (!isStakeRegistered) {
       certs.add(
@@ -61,6 +68,12 @@ class StakeTransactionBuilder {
       Certificate.stakeDelegation(
         stakeCredential: stakeCredential,
         stakePoolId: poolId,
+      ),
+    );
+    certs.add(
+      Certificate.voteDelegation(
+        stakeCredential: stakeCredential,
+        dRep: Drep.abstain(lengthType: CborLengthType.definite),
       ),
     );
 
@@ -91,11 +104,20 @@ class StakeTransactionBuilder {
           stakeCredential: HEX.encode(stakeCredBytes),
           poolKeyHash: poolIdBech32,
         ),
+        proto_cert.Certificate(
+          type: proto_cert.CertificateType.voteDelegation,
+          stakeCredential: HEX.encode(stakeCredBytes),
+          dRepType: proto_cert.DRepType.abstain,
+        ),
       ],
     );
   }
 
   /// 构建提取奖励交易
+  ///
+  /// **前提条件**：stake key 必须在此交易之前就已委托给 DRep（或弃权）——
+  /// ledger 对 withdrawal 的 DRep 检查用证书应用前的账户状态快照，
+  /// 因此本交易不附带任何证书，弃权委托由 [buildDelegate] 随委托交易完成。
   ///
   /// [fromAddress] 支付地址（用于 UTxO 和手续费）
   /// [stakeAddress] stake address（bech32 格式）
@@ -139,7 +161,8 @@ class StakeTransactionBuilder {
 
   /// 构建解除 stake key 注册交易
   ///
-  /// 解除后可退回 2 ADA deposit。
+  /// 解除后可退回 2 ADA deposit。调用前必须确保奖励账户余额已为零，
+  /// 否则链上会拒绝（StakeKeyHasNonZeroAccountBalanceDELEG）。
   Future<ColdExport> buildDeregister({
     required String fromAddress,
     required String stakeAddress,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../models/watch_wallet.dart';
 
 /// 本地存储服务
@@ -12,7 +13,12 @@ import '../models/watch_wallet.dart';
 class StorageService {
   static const _walletsKey = 'watch_wallets';
   static const _currentWalletIdKey = 'current_wallet_id';
-  static const _blockfrostKeyKey = 'blockfrost_api_key';
+
+  /// 测试网 Blockfrost key（向后兼容旧 key 名称）
+  static const _blockfrostKeyTestnet = 'blockfrost_api_key';
+
+  /// 主网 Blockfrost key
+  static const _blockfrostKeyMainnet = 'blockfrost_api_key_mainnet';
   static const _enabledAssetsPrefix = 'enabled_assets_';
 
   final SharedPreferences _prefs;
@@ -51,26 +57,24 @@ class StorageService {
     await _prefs.setString(_currentWalletIdKey, id);
   }
 
-  Future<String> getCurrentNetwork() async {
-    return 'preview';
-  }
-
-  Future<void> setCurrentNetwork(String network) async {
-    // Network is fixed to preview testnet; this setter is kept for compatibility.
-  }
+  /// 获取当前网络对应的 Blockfrost key 存储键名
+  String get _blockfrostKey =>
+      AppConfig.isMainnet ? _blockfrostKeyMainnet : _blockfrostKeyTestnet;
 
   /// 获取 Blockfrost API Key（从安全存储）
+  ///
+  /// 根据 [AppConfig.isMainnet] 自动选择测试网或主网 key。
   Future<String?> getBlockfrostApiKey() async {
-    return _secureStorage.read(key: _blockfrostKeyKey);
+    return _secureStorage.read(key: _blockfrostKey);
   }
 
   /// 保存 Blockfrost API Key 到安全存储
   Future<void> setBlockfrostApiKey(String apiKey) async {
-    await _secureStorage.write(key: _blockfrostKeyKey, value: apiKey);
+    await _secureStorage.write(key: _blockfrostKey, value: apiKey);
   }
 
   Future<void> deleteBlockfrostApiKey() async {
-    await _secureStorage.delete(key: _blockfrostKeyKey);
+    await _secureStorage.delete(key: _blockfrostKey);
   }
 
   /// 获取指定钱包用户启用的资产列表

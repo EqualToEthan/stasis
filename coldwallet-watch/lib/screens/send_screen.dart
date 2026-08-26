@@ -55,14 +55,14 @@ class _SendScreenState extends State<SendScreen> {
       final apiKey = await storage.getBlockfrostApiKey() ?? '';
       final blockfrost = BlockfrostService(
         apiKey: apiKey,
-        network: wallet.network,
+        network: AppConfig.isMainnet ? 'mainnet' : 'preview',
       );
       final txBuilder = TxBuilderService(blockfrost);
       final coldExport = await txBuilder.buildTransferTx(
         fromAddress: wallet.address,
         toAddress: toAddress,
         assets: [AssetAmount(unit: _selectedUnit, quantity: amount)],
-        network: wallet.network,
+        network: AppConfig.isMainnet ? 'mainnet' : 'preview',
       );
       if (mounted) {
         Navigator.pushNamed(context, '/export-tx', arguments: coldExport);

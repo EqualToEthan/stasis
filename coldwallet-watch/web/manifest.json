@@ -1,6 +1,6 @@
 {
-    "name": "coldwallet_watch",
-    "short_name": "coldwallet_watch",
+    "name": "Stasis Link",
+    "short_name": "Stasis Link",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
