@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'screens/add_wallet_screen.dart';
 import 'screens/export_tx_screen.dart';
+import 'screens/governance_delegation_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/import_signed_screen.dart';
 import 'screens/receive_screen.dart';
@@ -12,7 +13,7 @@ import 'screens/staking_screen.dart';
 /// 观察钱包 App 根组件
 ///
 /// 配置 MaterialApp 路由表和 Material3 主题。
-/// 路由包括：首页、添加钱包、发送、收款、导出交易、导入签名、设置、质押管理。
+/// 路由包括：首页、添加钱包、发送、收款、导出交易、导入签名、设置、质押、治理委托。
 class ColdWalletWatchApp extends StatelessWidget {
   const ColdWalletWatchApp({super.key});
 
@@ -35,6 +36,8 @@ class ColdWalletWatchApp extends StatelessWidget {
         '/import-signed': (context) => const ImportSignedScreen(),
         '/settings': (context) => const SettingsScreen(),
         '/staking': (context) => const StakingScreen(),
+        '/governance-delegation': (context) =>
+            const GovernanceDelegationScreen(),
       },
     );
   }

@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../models/watch_wallet.dart';
 import '../services/blockfrost_service.dart';
 import '../services/stake_transaction_builder.dart';
 import '../services/storage_service.dart';
+import '../widgets/info_card.dart';
 
-/// 质押管理页面
+/// 质押页面
 ///
-/// 展示当前质押状态（委托池、可提取奖励），提供三种操作入口：
-/// 委托（首次注册+委托，或已委托时重新委托）、提取奖励、解除注册。
+/// 展示当前 Stake Pool 质押状态（注册状态、当前质押池、可提取奖励），
+/// 提供三种操作入口：质押（首次注册+Stake Pool 质押+弃权一次完成）、
+/// 提取奖励、解除注册。Conway 时代提取奖励要求 stake key 已弃权
+///（或完成治理委托）；
+/// 弃权证书随质押交易自动附带（ADR 0004），用户无感知。
 /// 构建的未签名交易通过 [ColdExport] 传递给冷钱包签名。
 class StakingScreen extends StatefulWidget {
   /// 可选的 Blockfrost 服务注入，用于测试。
@@ -24,6 +29,9 @@ class StakingScreen extends StatefulWidget {
 class _StakingScreenState extends State<StakingScreen> {
   WatchWallet? _wallet;
   final _poolIdController = TextEditingController();
+
+  /// 当前网络标识，由 AppConfig.isMainnet 决定
+  String get _currentNetwork => AppConfig.isMainnet ? 'mainnet' : 'preview';
 
   // 质押状态
   bool _loadingStatus = true;
@@ -65,7 +73,7 @@ class _StakingScreenState extends State<StakingScreen> {
       _statusError = null;
     });
     try {
-      final blockfrost = await _createBlockfrost(wallet.network);
+      final blockfrost = await _createBlockfrost();
       final info = await blockfrost.getStakeAccountInfo(wallet.stakeAddress!);
       if (!mounted) return;
       setState(() {
@@ -81,11 +89,11 @@ class _StakingScreenState extends State<StakingScreen> {
     }
   }
 
-  Future<BlockfrostService> _createBlockfrost(String network) async {
+  Future<BlockfrostService> _createBlockfrost() async {
     if (widget.blockfrostService != null) return widget.blockfrostService!;
     final storage = await StorageService.create();
     final apiKey = await storage.getBlockfrostApiKey() ?? '';
-    return BlockfrostService(apiKey: apiKey, network: network);
+    return BlockfrostService(apiKey: apiKey, network: _currentNetwork);
   }
 
   Future<void> _buildDelegate() async {
@@ -104,7 +112,7 @@ class _StakingScreenState extends State<StakingScreen> {
 
     setState(() => _building = true);
     try {
-      final blockfrost = await _createBlockfrost(wallet.network);
+      final blockfrost = await _createBlockfrost();
 
       // 校验 pool 是否已退役
       final retired = await blockfrost.isPoolRetired(poolId);
@@ -119,14 +127,14 @@ class _StakingScreenState extends State<StakingScreen> {
         fromAddress: wallet.address,
         stakeAddress: wallet.stakeAddress!,
         poolIdBech32: poolId,
-        network: wallet.network,
+        network: _currentNetwork,
         isStakeRegistered: isActive,
       );
       if (mounted) {
         Navigator.pushNamed(context, '/export-tx', arguments: coldExport);
       }
     } catch (e) {
-      _showError('构建委托交易失败: $e');
+      _showError('构建质押交易失败: $e');
     } finally {
       if (mounted) setState(() => _building = false);
     }
@@ -149,13 +157,13 @@ class _StakingScreenState extends State<StakingScreen> {
 
     setState(() => _building = true);
     try {
-      final blockfrost = await _createBlockfrost(wallet.network);
+      final blockfrost = await _createBlockfrost();
       final builder = StakeTransactionBuilder(blockfrost);
       final coldExport = await builder.buildWithdrawReward(
         fromAddress: wallet.address,
         stakeAddress: wallet.stakeAddress!,
         withdrawableAmount: rewardAmount,
-        network: wallet.network,
+        network: _currentNetwork,
       );
       if (mounted) {
         Navigator.pushNamed(context, '/export-tx', arguments: coldExport);
@@ -177,13 +185,25 @@ class _StakingScreenState extends State<StakingScreen> {
       return;
     }
 
+    final rewardAmount =
+        BigInt.tryParse(
+          (_stakeInfo?['withdrawable_amount'] ?? '0').toString(),
+        ) ??
+        BigInt.zero;
+    if (rewardAmount > BigInt.zero) {
+      _showError(
+        '请先在「提取奖励」页提取全部奖励（${_formatAda(rewardAmount.toString())} ADA）后再解除注册',
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('确认解除注册'),
         content: const Text(
           '解除 stake key 注册后，将退回 2 ADA deposit。\n'
-          '当前委托关系也将终止。\n\n确定要继续吗？',
+          '当前质押关系也将终止。\n\n确定要继续吗？',
         ),
         actions: [
           TextButton(
@@ -201,12 +221,12 @@ class _StakingScreenState extends State<StakingScreen> {
 
     setState(() => _building = true);
     try {
-      final blockfrost = await _createBlockfrost(wallet.network);
+      final blockfrost = await _createBlockfrost();
       final builder = StakeTransactionBuilder(blockfrost);
       final coldExport = await builder.buildDeregister(
         fromAddress: wallet.address,
         stakeAddress: wallet.stakeAddress!,
-        network: wallet.network,
+        network: _currentNetwork,
       );
       if (mounted) {
         Navigator.pushNamed(context, '/export-tx', arguments: coldExport);
@@ -251,7 +271,7 @@ class _StakingScreenState extends State<StakingScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('质押管理')),
+      appBar: AppBar(title: const Text('质押')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -339,44 +359,29 @@ class _StakingScreenState extends State<StakingScreen> {
     final poolId = info['pool_id'] as String?;
     final rewardAmount = info['withdrawable_amount']?.toString() ?? '0';
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '质押状态',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            _infoRow('状态', isActive ? '已注册' : '未注册'),
-            if (poolId != null) _infoRow('当前委托池', _shortPoolId(poolId)),
-            _infoRow('可提取奖励', '${_formatAda(rewardAmount)} ADA'),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InfoCard(
+          title: '状态',
+          value: isActive ? '已注册' : '未注册',
+          icon: Icons.fact_check,
         ),
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Flexible(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis,
-            ),
+        if (poolId != null) ...[
+          const SizedBox(height: 12),
+          InfoCard(
+            title: '当前质押池',
+            value: _shortPoolId(poolId),
+            icon: Icons.how_to_vote,
           ),
         ],
-      ),
+        const SizedBox(height: 12),
+        InfoCard(
+          title: '可提取奖励',
+          value: '${_formatAda(rewardAmount)} ADA',
+          icon: Icons.savings,
+        ),
+      ],
     );
   }
 
@@ -390,7 +395,7 @@ class _StakingScreenState extends State<StakingScreen> {
       segments: const [
         ButtonSegment(
           value: 'delegate',
-          label: Text('委托'),
+          label: Text('质押'),
           icon: Icon(Icons.how_to_vote),
         ),
         ButtonSegment(
@@ -432,32 +437,20 @@ class _StakingScreenState extends State<StakingScreen> {
     final poolId = _stakeInfo?['pool_id'] as String?;
     final isDelegated = poolId != null;
 
-    // 已委托时只读展示当前委托信息，不提供更换入口。
-    // 如需更换质押池，必须先在「解除注册」tab 解除当前委托。
+    // 已质押时只读展示当前质押信息，不提供更换入口。
+    // 如需更换质押池，必须先在「解除注册」tab 解除当前质押。
     if (isDelegated) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.green),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '当前已委托到 ${_shortPoolId(poolId)}',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          InfoCard(
+            title: '当前质押池',
+            value: _shortPoolId(poolId),
+            icon: Icons.check_circle,
           ),
           const SizedBox(height: 12),
           Text(
-            '如需更换质押池，请先在「解除注册」页解除当前委托。',
+            '如需更换质押池，请先在「解除注册」页解除当前质押。',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: Colors.grey),
@@ -480,7 +473,9 @@ class _StakingScreenState extends State<StakingScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          '输入目标 Stake Pool 的 bech32 ID。如果 stake key 尚未注册，会自动包含注册操作（需 2 ADA 押金）。',
+          '输入目标 Stake Pool 的 bech32 ID。本交易将同时完成 stake key 注册、'
+          'Stake Pool 质押和弃权（默认不参与治理）。如果 stake key 尚未注册，'
+          '会自动包含注册操作（需 2 ADA 押金）。',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: Colors.grey),
@@ -499,7 +494,7 @@ class _StakingScreenState extends State<StakingScreen> {
                       color: Colors.white,
                     ),
                   )
-                : const Text('构建委托交易'),
+                : const Text('构建质押交易'),
           ),
         ),
       ],
@@ -515,27 +510,15 @@ class _StakingScreenState extends State<StakingScreen> {
     final hasReward =
         (BigInt.tryParse(rewardAmount) ?? BigInt.zero) > BigInt.zero;
 
+    // 弃权前置条件由质押交易自动满足（ADR 0004），本面板不再做 DRep 检查；
+    // 异常状态（如外部工具质押了 pool 但未弃权）由链上报错原文兜底。
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Card(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('可提取奖励'),
-                Text(
-                  '${_formatAda(rewardAmount)} ADA',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        InfoCard(
+          title: '可提取奖励',
+          value: '${_formatAda(rewardAmount)} ADA',
+          icon: Icons.savings,
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -563,11 +546,45 @@ class _StakingScreenState extends State<StakingScreen> {
       return const Text('请先导入 stake address');
     }
 
+    final rewardAmount =
+        BigInt.tryParse(
+          (_stakeInfo?['withdrawable_amount'] ?? '0').toString(),
+        ) ??
+        BigInt.zero;
+    final hasRewards = rewardAmount > BigInt.zero;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (hasRewards) ...[
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '奖励账户仍有 ${_formatAda(rewardAmount.toString())} ADA，'
+                      '请先在「提取奖励」页提取全部奖励后再解除注册。',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         Card(
-          color: Theme.of(context).colorScheme.errorContainer,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -575,7 +592,7 @@ class _StakingScreenState extends State<StakingScreen> {
                 Icon(Icons.warning, color: Theme.of(context).colorScheme.error),
                 const SizedBox(width: 12),
                 const Expanded(
-                  child: Text('解除注册后将退回 2 ADA deposit，同时终止当前委托关系。'),
+                  child: Text('解除注册后将退回 2 ADA deposit，同时终止当前质押关系。'),
                 ),
               ],
             ),
@@ -588,7 +605,7 @@ class _StakingScreenState extends State<StakingScreen> {
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
-            onPressed: _building ? null : _buildDeregister,
+            onPressed: (_building || hasRewards) ? null : _buildDeregister,
             child: _building
                 ? const SizedBox(
                     width: 20,

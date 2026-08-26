@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../models/asset_balance.dart';
 import '../models/watch_wallet.dart';
 import '../services/asset_service.dart';
@@ -13,7 +14,13 @@ import '../services/wallet_service.dart';
 /// 展示钱包选择器、地址、ADA 余额、发送/收款入口和资产列表。
 /// 通过 Blockfrost API 查询链上余额，支持下拉刷新。
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  /// 可选的 StorageService 注入，主要用于测试。
+  final StorageService? storageService;
+
+  /// 可选的 BlockfrostService 注入，主要用于测试。
+  final BlockfrostService? blockfrostService;
+
+  const HomeScreen({super.key, this.storageService, this.blockfrostService});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -34,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _init() async {
-    final storage = await StorageService.create();
+    final storage = widget.storageService ?? await StorageService.create();
     _walletService = WalletService(storage);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
@@ -91,10 +98,12 @@ class _HomeScreenState extends State<HomeScreen> {
         });
         return;
       }
-      final blockfrost = BlockfrostService(
-        apiKey: apiKey,
-        network: wallet.network,
-      );
+      final blockfrost =
+          widget.blockfrostService ??
+          BlockfrostService(
+            apiKey: apiKey,
+            network: AppConfig.isMainnet ? 'mainnet' : 'preview',
+          );
       final assetService = AssetService(blockfrost, storage);
       final assets = await assetService.loadBalances(wallet.address, wallet.id);
       assets.sort((a, b) {
@@ -401,14 +410,32 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         if (wallet.stakeAddress != null) ...[
           const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: _ActionButton(
-              icon: Icons.how_to_vote,
-              label: '质押',
-              onTap: () =>
-                  Navigator.pushNamed(context, '/staking', arguments: wallet),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.how_to_vote,
+                  label: '质押',
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    '/staking',
+                    arguments: wallet,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.account_balance,
+                  label: '治理委托',
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    '/governance-delegation',
+                    arguments: wallet,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ],

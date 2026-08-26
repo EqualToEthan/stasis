@@ -31,8 +31,8 @@ EVM 链族的未签名交易数据载体，与 Cardano 的 ColdExport 平行。�
 _Avoid_: EVM ColdExport、以太坊交易
 
 **传输通道**:
-冷钱包与观察钱包之间的数据交换方式，支持二维码和文件导出/导入两种。
-_Avoid_: 通信方式、同步
+冷钱包与观察钱包之间的数据交换方式，支持二维码和剪贴板（复制/粘贴 JSON）两种。
+_Avoid_: 通信方式、同步、文件传输
 
 ## 链体系
 
@@ -41,16 +41,24 @@ _Avoid_: 通信方式、同步
 _Avoid_: 链类型、链类别
 
 **链配置（ChainConfig）**:
-描述一条链的静态元数据：chainId、chainFamily、显示名称、网络标识。所有配置在 ChainRegistry 中硬编码，不可运行时修改或添加。
+描述一条链的静态元数据：chainId、chainFamily、显示名称、网络标识、evmChainId。定义在 coldwallet-protocol 中，由 ChainRegistry 维护测试网和主网两组配置，运行时由 AppConfig 决定激活哪组。
 _Avoid_: 链信息、网络配置
+
+**AppConfig**:
+coldwallet-protocol 中的全局网络开关（`static bool isMainnet`）。决定 ChainRegistry 激活测试网还是主网配置组。改这一个字段即可切换全局网络，两个 app 同步生效。
+_Avoid_: 网络配置、环境配置
+
+**链注册中心（ChainRegistry）**:
+管理所有受支持链配置的静态注册表，提供 chainId → ChainConfig 查找。定义在 coldwallet-protocol 中，维护测试网和主网两组配置，按 AppConfig.isMainnet 选组。两个 app 共享。
+_Avoid_: 链管理器
+
+**适配器注册表（AdapterRegistry）**:
+coldwallet-app 专属的链适配器查找表，提供 chainFamily → ChainAdapter 映射。从 ChainRegistry 拆出，因适配器含私钥派生和签名逻辑，不放入共享包。
+_Avoid_: 链适配器管理器
 
 **链适配器（ChainAdapter）**:
 链族级别的抽象接口，封装地址派生、交易解析和签名的链特有逻辑。当前实现：CardanoAdapter、EvmAdapter。
 _Avoid_: 链服务、链处理器
-
-**链注册中心（ChainRegistry）**:
-管理所有受支持链配置的静态注册表，提供 chainId → ChainConfig 和 chainFamily → ChainAdapter 的查找。
-_Avoid_: 链管理器
 
 ## 钱包
 
@@ -85,8 +93,16 @@ _Avoid_: 交易详情、交易信息
 _Avoid_: 代币余额、资产信息
 
 **Certificate（证书）**:
-Cardano 质押操作的链上声明，类型包括 stakeRegistration、stakeDelegation、stakeDeregistration。
+Cardano 质押与治理操作的链上声明，类型包括 stakeRegistration、stakeDelegation、stakeDeregistration、voteDelegation。
 _Avoid_: 质押操作、质押交易
+
+**治理委托（DRep delegation）**:
+把 stake key 的治理投票权委托给 DRep、弃权（abstain）或表示不信任（no-confidence）的链上操作。Conway 时代起是奖励提取的前置条件：ledger 检查奖励账户在本交易**之前**的委托状态，因此治理委托证书与奖励提取必须在两笔交易中完成（链上规则，无法绕过）。
+_Avoid_: DRep 委托、投票委托
+
+**弃权（abstain）**:
+治理委托的一种形式，对治理提案投弃权票（既不赞成也不反对），同时满足奖励提取的治理委托前置条件。本项目当前唯一支持的治理委托形式——系统在质押交易时自动附带弃权证书，用户无感知；不提供选择具体 DRep 的界面，后续再规划。
+_Avoid_: 不投票、空委托
 
 **Stake Address**:
 Cardano 质押地址，与支付地址分离。观察钱包通过合并地址 QR（paymentAddress + stakeAddress）一次性导入。
