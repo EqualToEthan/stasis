@@ -20,6 +20,8 @@ class StorageService {
   /// 主网 Blockfrost key
   static const _blockfrostKeyMainnet = 'blockfrost_api_key_mainnet';
   static const _enabledAssetsPrefix = 'enabled_assets_';
+  static const _evmRpcUrlPrefix = 'evm_rpc_url_';
+  static const _evmTokenContractsPrefix = 'evm_token_contracts_';
 
   final SharedPreferences _prefs;
   final FlutterSecureStorage _secureStorage;
@@ -86,5 +88,40 @@ class StorageService {
   Future<void> setEnabledAssets(String walletId, List<String> units) async {
     final key = '$_enabledAssetsPrefix$walletId';
     await _prefs.setStringList(key, units);
+  }
+
+  /// 获取指定 EVM 链的自定义 RPC URL。
+  ///
+  /// 返回 null 时表示使用 [EvmRpcConfig] 中的默认节点。
+  Future<String?> getEvmRpcUrl(String chainId) async {
+    final key = '$_evmRpcUrlPrefix$chainId';
+    return _prefs.getString(key);
+  }
+
+  /// 保存指定 EVM 链的自定义 RPC URL。
+  ///
+  /// 传入 null 或空字符串时删除已保存的覆盖值。
+  Future<void> setEvmRpcUrl(String chainId, String? url) async {
+    final key = '$_evmRpcUrlPrefix$chainId';
+    if (url == null || url.trim().isEmpty) {
+      await _prefs.remove(key);
+    } else {
+      await _prefs.setString(key, url.trim());
+    }
+  }
+
+  /// 获取指定 EVM 链下用户手动添加的 ERC-20 合约地址列表。
+  Future<List<String>> getEvmTokenContracts(String chainId) async {
+    final key = '$_evmTokenContractsPrefix$chainId';
+    return _prefs.getStringList(key) ?? [];
+  }
+
+  /// 保存指定 EVM 链下用户手动添加的 ERC-20 合约地址列表。
+  Future<void> setEvmTokenContracts(
+    String chainId,
+    List<String> contracts,
+  ) async {
+    final key = '$_evmTokenContractsPrefix$chainId';
+    await _prefs.setStringList(key, contracts);
   }
 }

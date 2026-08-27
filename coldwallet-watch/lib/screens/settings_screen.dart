@@ -1,104 +1,85 @@
 import 'package:flutter/material.dart';
 
-import 'package:coldwallet_protocol/coldwallet_protocol.dart';
-
 import '../services/storage_service.dart';
+import 'about_screen.dart';
+import 'network_api_settings_screen.dart';
+import 'token_management_screen.dart';
 
 /// 设置页面
 ///
-/// 显示当前网络信息（由 coldwallet-protocol 中 `AppConfig.isMainnet`
-/// 全局开关决定），提供 Blockfrost API Key 的配置入口。
-/// 网络切换不在运行时 UI 中进行，修改全局开关后两端同步生效。
-class SettingsScreen extends StatefulWidget {
+/// 作为设置分类的入口，列出各大设置分类。
+/// 点击分类进入对应的子设置页。
+class SettingsScreen extends StatelessWidget {
   /// 可选的 StorageService 注入，主要用于测试。
   final StorageService? storageService;
 
   const SettingsScreen({super.key, this.storageService});
 
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  late StorageService _storage;
-  final _apiKeyController = TextEditingController();
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final storage = widget.storageService ?? await StorageService.create();
-    final apiKey = await storage.getBlockfrostApiKey();
-    if (!mounted) return;
-    setState(() {
-      _storage = storage;
-      _apiKeyController.text = apiKey ?? '';
-      _loading = false;
-    });
-  }
-
-  Future<void> _saveSettings() async {
-    await _storage.setBlockfrostApiKey(_apiKeyController.text.trim());
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('设置已保存')));
-    }
+  void _navigate(BuildContext context, Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('网络', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-              AppConfig.isMainnet ? 'Mainnet 主网' : 'Preview 测试网',
-              style: Theme.of(context).textTheme.titleMedium,
+        children: [
+          _CategoryCard(
+            icon: Icons.network_check,
+            title: '网络与 API',
+            subtitle: '网络环境、Blockfrost Key、EVM RPC 节点',
+            onTap: () => _navigate(
+              context,
+              NetworkApiSettingsScreen(storageService: storageService),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '全局网络开关控制，修改 AppConfig.isMainnet 后两端同步生效。',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+          ),
+          const SizedBox(height: 12),
+          _CategoryCard(
+            icon: Icons.token,
+            title: '代币管理',
+            subtitle: '管理各链上的 ERC-20 代币',
+            onTap: () => _navigate(
+              context,
+              TokenManagementScreen(storageService: storageService),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Blockfrost API Key',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _apiKeyController,
-              decoration: const InputDecoration(
-                hintText: '输入 Blockfrost Project ID',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _saveSettings,
-                child: const Text('保存'),
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          _CategoryCard(
+            icon: Icons.info_outline,
+            title: '关于',
+            subtitle: '应用版本与说明',
+            onTap: () => _navigate(context, const AboutScreen()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _CategoryCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
     );
   }

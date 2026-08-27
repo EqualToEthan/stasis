@@ -1,58 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:coldwallet_watch/models/evm_asset_balance.dart';
 import 'package:coldwallet_watch/models/watch_wallet.dart';
 import 'package:coldwallet_watch/screens/home_screen.dart';
 import 'package:coldwallet_watch/services/blockfrost_service.dart';
+import 'package:coldwallet_watch/services/evm_asset_service.dart';
+import 'package:coldwallet_watch/services/evm_rpc_service.dart';
 import 'package:coldwallet_watch/services/storage_service.dart';
-
-/// 测试用的 StorageService 替身，避免调用真实的 SecureStorage/SharedPreferences。
-class _FakeStorageService implements StorageService {
-  final List<WatchWallet> _wallets;
-  String? _apiKey;
-  String? _currentWalletId;
-
-  _FakeStorageService({
-    required List<WatchWallet> wallets,
-    String? apiKey,
-    String? currentWalletId,
-  }) : _wallets = wallets,
-       _apiKey = apiKey,
-       _currentWalletId = currentWalletId;
-
-  @override
-  Future<String?> getBlockfrostApiKey() async => _apiKey;
-
-  @override
-  Future<void> setBlockfrostApiKey(String apiKey) async {
-    _apiKey = apiKey;
-  }
-
-  @override
-  Future<void> deleteBlockfrostApiKey() async {
-    _apiKey = null;
-  }
-
-  @override
-  Future<List<WatchWallet>> loadWallets() async => _wallets;
-
-  @override
-  Future<void> saveWallets(List<WatchWallet> wallets) async {}
-
-  @override
-  Future<String?> getCurrentWalletId() async => _currentWalletId;
-
-  @override
-  Future<void> setCurrentWalletId(String id) async {
-    _currentWalletId = id;
-  }
-
-  @override
-  Future<List<String>> getEnabledAssets(String walletId) async => [];
-
-  @override
-  Future<void> setEnabledAssets(String walletId, List<String> assets) async {}
-}
+import '../support/fake_storage_service.dart';
 
 /// 模拟 Blockfrost 余额响应，避免真实网络请求。
 class _MockBlockfrost extends BlockfrostService {
@@ -65,6 +21,20 @@ class _MockBlockfrost extends BlockfrostService {
       {'unit': 'lovelace', 'quantity': '100000000'},
     ],
   };
+}
+
+/// 返回预设 EVM 资产余额的 mock 服务。
+class _FakeEvmAssetService extends EvmAssetService {
+  final List<EvmAssetBalance> _balances;
+
+  _FakeEvmAssetService(this._balances)
+    : super(EvmRpcService(), FakeStorageService(wallets: []));
+
+  @override
+  Future<List<EvmAssetBalance>> loadBalances(
+    String chainId,
+    String address,
+  ) async => _balances;
 }
 
 void main() {
@@ -85,9 +55,9 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: HomeScreen(
-              storageService: _FakeStorageService(
+              storageService: FakeStorageService(
                 wallets: [wallet],
-                apiKey: 'test-api-key',
+                blockfrostApiKey: 'test-api-key',
                 currentWalletId: wallet.id,
               ),
               blockfrostService: _MockBlockfrost(),
@@ -120,9 +90,9 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: HomeScreen(
-              storageService: _FakeStorageService(
+              storageService: FakeStorageService(
                 wallets: [wallet],
-                apiKey: 'test-api-key',
+                blockfrostApiKey: 'test-api-key',
                 currentWalletId: wallet.id,
               ),
               blockfrostService: _MockBlockfrost(),
@@ -138,5 +108,79 @@ void main() {
         expect(find.text('治理委托'), findsNothing);
       },
     );
+
+    testWidgets('shows native balance and ERC-20 tokens for EVM wallet', (
+      tester,
+    ) async {
+      final wallet = WatchWallet.create(
+        name: 'EVM Wallet',
+        address: '0xDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEf',
+        chainFamily: 'evm',
+        chainId: 'evm-1',
+        network: 'mainnet',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            storageService: FakeStorageService(
+              wallets: [wallet],
+              currentWalletId: wallet.id,
+            ),
+            evmAssetService: _FakeEvmAssetService([
+              EvmAssetBalance(
+                symbol: 'ETH',
+                decimals: 18,
+                balanceInWei: '2500000000000000000',
+              ),
+              EvmAssetBalance(
+                contractAddress: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+                symbol: 'USDT',
+                decimals: 6,
+                balanceInWei: '1000000',
+              ),
+            ]),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('2.5 ETH'), findsOneWidget);
+      expect(find.text('USDT'), findsOneWidget);
+      expect(find.text('1'), findsWidgets);
+      expect(find.text('质押'), findsNothing);
+      expect(find.text('治理委托'), findsNothing);
+    });
+
+    testWidgets('shows add token hint when EVM wallet has no ERC-20 tokens', (
+      tester,
+    ) async {
+      final wallet = WatchWallet.create(
+        name: 'EVM Wallet',
+        address: '0xDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEf',
+        chainFamily: 'evm',
+        chainId: 'evm-1',
+        network: 'mainnet',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            storageService: FakeStorageService(
+              wallets: [wallet],
+              currentWalletId: wallet.id,
+            ),
+            evmAssetService: _FakeEvmAssetService([
+              EvmAssetBalance(symbol: 'ETH', decimals: 18, balanceInWei: '0'),
+            ]),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('暂无 ERC-20 代币，请到设置页添加'), findsOneWidget);
+    });
   });
 }

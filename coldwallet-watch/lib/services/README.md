@@ -6,8 +6,11 @@
 
 | 文件 | 主要类 | 功能说明 |
 |------|--------|----------|
-| asset_service.dart | AssetService | 资产查询，通过 Blockfrost 获取地址余额并结合用户启用配置返回资产列表 |
+| asset_service.dart | AssetService | Cardano 资产查询，通过 Blockfrost 获取地址余额并结合用户启用配置返回资产列表 |
 | blockfrost_service.dart | BlockfrostService, BlockfrostEndpoint | Blockfrost API 封装，提供 UTxO、余额、区块、协议参数查询和交易提交 |
+| evm_rpc_config.dart | EvmRpcConfig | EVM 默认公共 RPC 端点表（免费、无需 API key 的公共服务），按 ChainConfig.chainId 索引 |
+| evm_rpc_service.dart | EvmRpcService | 极简 EVM JSON-RPC 客户端，封装 eth_getBalance / eth_call 与 ABI 编解码 |
+| evm_asset_service.dart | EvmAssetService | EVM 资产查询，聚合原生代币与已添加 ERC-20 代币余额 |
 | `storage_service.dart | StorageService | 本地存储，SharedPreferences 存钱包列表，SecureStorage 存 API Key（测试网/主网分别存储） |
 | stake_transaction_builder.dart | StakeTransactionBuilder | 质押交易构建，支持委托、提取奖励、解除注册三种操作，迭代计算手续费（含 payment + stake witness 占位），首次注册时 summary deposit 为正数（2 ADA），解除注册时为负数（退回 2 ADA）；DRep 弃权证书随委托交易自动附带（ADR 0004），Conway 时代 ledger 对 withdrawal 的 DRep 检查用证书应用前的账户状态快照，因此提取奖励交易是纯 withdrawal、不能附带任何证书 |
 | tx_builder_service.dart | TxBuilderService | 交易构建，使用 cardano_dart_types 构建 ADA 转账的未签名交易，迭代计算手续费（含 payment witness 占位） |
@@ -47,6 +50,29 @@
 |------|--------|------|
 | `loadBalances(address, walletId)` | `Future<List<AssetBalance>>` | 加载地址资产余额，结合用户启用配置 |
 
+### EvmRpcService
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `getBalance(rpcUrl, address)` | `Future<BigInt>` | 查询地址原生代币余额（wei） |
+| `getTokenBalance(rpcUrl, walletAddress, contractAddress)` | `Future<BigInt>` | 查询地址在 ERC-20 合约中的余额 |
+| `getTokenSymbol(rpcUrl, contractAddress)` | `Future<String>` | 读取 ERC-20 symbol，兼容 string / bytes32 |
+| `getTokenDecimals(rpcUrl, contractAddress)` | `Future<int>` | 读取 ERC-20 decimals |
+| `isErc20Readable(rpcUrl, contractAddress)` | `Future<bool>` | 同时校验 decimals + symbol 是否可读 |
+
+### EvmAssetService
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `loadBalances(chainId, address)` | `Future<List<EvmAssetBalance>>` | 加载指定 EVM 链上地址的原生代币与 ERC-20 余额 |
+
+### EvmRpcConfig
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `getDefaultRpcUrl(chainId)` | `String?` | 获取指定链的默认公共 RPC URL |
+| `resolveRpcUrl(storage, chainId)` | `Future<String>` | 优先返回用户自定义 RPC URL，否则回退到默认端点 |
+
 ### StakeTransactionBuilder
 
 | 方法 | 返回值 | 说明 |
@@ -70,14 +96,16 @@
 | `getCurrentWalletId()` / `setCurrentWalletId(id)` | — | 当前钱包 ID |
 | `getBlockfrostApiKey()` / `setBlockfrostApiKey(key)` / `deleteBlockfrostApiKey()` | — | API Key 管理（SecureStorage，根据 AppConfig.isMainnet 自动选测试网/主网 key） |
 | `getEnabledAssets(walletId)` / `setEnabledAssets(walletId, units)` | — | 用户启用的资产列表 |
+| `getEvmRpcUrl(chainId)` / `setEvmRpcUrl(chainId, url)` | — | EVM 链自定义 RPC URL（null 时使用默认节点） |
+| `getEvmTokenContracts(chainId)` / `setEvmTokenContracts(chainId, contracts)` | — | EVM 链手动添加的 ERC-20 合约地址列表 |
 
 ## 依赖关系
 
 - **内部依赖**：
-  - `models/` — WatchWallet、AssetBalance、ColdExport
+  - `models/` — WatchWallet、AssetBalance、EvmAssetBalance、ColdExport
 - **外部依赖**：
   - `coldwallet_protocol` — 共享协议包（ChainConfig、ChainRegistry、AppConfig）
-  - `http` — HTTP 请求（Blockfrost API）
+  - `http` — HTTP 请求（Blockfrost API、EVM JSON-RPC）
   - `shared_preferences` — 明文本地存储
   - `flutter_secure_storage` — 加密安全存储
   - `cardano_dart_types` — Cardano 交易类型定义
@@ -87,9 +115,11 @@
 ```
 screens/ → WalletService → StorageService
 screens/ → AssetService → BlockfrostService + StorageService
+screens/ → EvmAssetService → EvmRpcService + StorageService
 screens/ → TxBuilderService → BlockfrostService
 screens/ → StakeTransactionBuilder → BlockfrostService
 screens/ → BlockfrostService（直接调用 submitTx / getPoolInfo / getStakeAccountInfo）
+screens/ → EvmRpcService（管理页直接校验 ERC-20 可读性）
 ```
 
 ## 存储 Key 规划
@@ -101,6 +131,8 @@ screens/ → BlockfrostService（直接调用 submitTx / getPoolInfo / getStakeA
 | `blockfrost_api_key` | 测试网 Blockfrost API Key（向后兼容） | SecureStorage |
 | `blockfrost_api_key_mainnet` | 主网 Blockfrost API Key | SecureStorage |
 | `enabled_assets_{walletId}` | 用户启用的资产 unit 列表 | SharedPreferences |
+| `evm_rpc_url_{chainId}` | EVM 链自定义 RPC URL | SharedPreferences |
+| `evm_token_contracts_{chainId}` | EVM 链已添加 ERC-20 合约地址列表 | SharedPreferences |
 
 ## 常见修改指引
 
@@ -114,5 +146,10 @@ screens/ → BlockfrostService（直接调用 submitTx / getPoolInfo / getStakeA
 | 添加新链族的地址检测 | wallet_service.dart — 在 detectChainFamily 中添加新的前缀判断 |
 | 添加新的存储配置项 | storage_service.dart — 添加新的 key 和 getter/setter |
 | 切换网络（测试网 ↔ 主网） | coldwallet-protocol/lib/app_config.dart — 修改 AppConfig.isMainnet（true=主网，false=测试网），两端需同步切换 |
+| 修改 EVM 默认 RPC 节点 | evm_rpc_config.dart — 更新 defaultRpcUrls |
+| 新增 EVM 链支持 | evm_rpc_config.dart（RPC）、evm_asset_service.dart（原生代币元数据）、ChainRegistry（链配置） |
+| 调整 ERC-20 ABI 编解码 | evm_rpc_service.dart — 修改选择器和 _decodeStringOrBytes32 |
+| 修改 EVM 资产加载逻辑 | evm_asset_service.dart — 调整 loadBalances 的合约遍历与容错 |
+| 修改代币管理页交互 | manage_evm_tokens_screen.dart — 调整校验、添加、删除流程 |
 | 修改手续费计算逻辑 | tx_builder_service.dart / stake_transaction_builder.dart — 修改迭代估算循环，注意 witness set 占位 |
 | 修复 FeeTooSmallUTxO | 检查费用估算是否包含最终签名后的 witness 大小 |

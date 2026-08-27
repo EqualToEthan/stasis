@@ -84,12 +84,24 @@ _Avoid_: 观察地址、监控钱包
 
 ## 资产与交易
 
+**原生代币（Native Token）**:
+链的原生加密资产，用于支付网络手续费（Gas）。Cardano 为 ADA，EVM 链族为 ETH、BNB、MATIC 等。原生代币没有合约地址，通过账户余额接口查询。
+_Avoid_: 主币、公链币
+
+**ERC-20 代币**:
+EVM 链上同质化代币标准，由智能合约发行，通过合约地址唯一标识。USDT、USDC 等常见稳定币均为 ERC-20。本项目中的 EVM 资产查询默认覆盖 ERC-20，不包含 NFT。
+_Avoid_: 代币、以太坊代币
+
+**合约地址（Contract Address）**:
+EVM 链上部署智能合约的地址，格式为 `0x` 前缀的 20 字节 hex。ERC-20 代币以合约地址作为资产标识；观察钱包中用户通过输入合约地址手动添加代币。
+_Avoid_: 合约、Token 合约
+
 **TxSummary（交易摘要）**:
 冷钱包用户在签名前确认交易内容的人类可读摘要，包含发送方、接收方、资产列表和手续费。
 _Avoid_: 交易详情、交易信息
 
 **AssetBalance**:
-某个地址下一种资产的余额记录，包含资产标识（unit）、数量、显示名称。ADA 的 unit 为 `lovelace`，原生代币为 policyId+assetName 的 hex。
+某个地址下一种资产的余额记录，包含资产标识（unit）、数量、显示名称。ADA 的 unit 为 `lovelace`，Cardano 原生代币为 policyId+assetName 的 hex；EVM 资产使用独立的 `EvmAssetBalance` 模型表示。
 _Avoid_: 代币余额、资产信息
 
 **Certificate（证书）**:
@@ -106,4 +118,3 @@ _Avoid_: 不投票、空委托
 
 **Stake Address**:
 Cardano 质押地址，与支付地址分离。观察钱包通过合并地址 QR（paymentAddress + stakeAddress）一次性导入。
-_Avoid_: 奖励地址、质押公钥

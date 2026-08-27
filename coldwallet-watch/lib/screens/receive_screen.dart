@@ -21,6 +21,8 @@ class ReceiveScreen extends StatelessWidget {
       );
     }
 
+    final chainName = _resolveChainName(wallet);
+
     return Scaffold(
       appBar: AppBar(title: const Text('收款')),
       body: SafeArea(
@@ -30,7 +32,7 @@ class ReceiveScreen extends StatelessWidget {
             children: [
               const SizedBox(height: 16),
               Text(
-                '仅接收 ${(AppConfig.isMainnet ? 'mainnet' : 'preview').toUpperCase()} 网络的资产',
+                '仅接收 $chainName 网络的资产',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),
@@ -83,5 +85,22 @@ class ReceiveScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// 根据钱包信息解析出用于提示的链显示名称。
+  ///
+  /// EVM 钱包使用保存的 chainId 从 [ChainRegistry] 查找具体链名；
+  /// Cardano 钱包若未保存 chainId，则按 [AppConfig.isMainnet] 回退到
+  /// cardano-mainnet / cardano-preview 配置。
+  String _resolveChainName(WatchWallet wallet) {
+    final chainId = wallet.chainId;
+    if (chainId != null) {
+      return ChainRegistry.getConfig(chainId)?.name ?? chainId;
+    }
+    final fallbackId = AppConfig.isMainnet
+        ? 'cardano-mainnet'
+        : 'cardano-preview';
+    return ChainRegistry.getConfig(fallbackId)?.name ??
+        (AppConfig.isMainnet ? 'Mainnet' : 'Preview');
   }
 }

@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 
 import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import '../models/asset_balance.dart';
+import '../models/evm_asset_balance.dart';
 import '../models/watch_wallet.dart';
 import '../services/asset_service.dart';
 import '../services/blockfrost_service.dart';
+import '../services/evm_asset_service.dart';
+import '../services/evm_rpc_service.dart';
 import '../services/storage_service.dart';
 import '../services/wallet_service.dart';
 
@@ -20,7 +23,15 @@ class HomeScreen extends StatefulWidget {
   /// 可选的 BlockfrostService 注入，主要用于测试。
   final BlockfrostService? blockfrostService;
 
-  const HomeScreen({super.key, this.storageService, this.blockfrostService});
+  /// 可选的 EvmAssetService 注入，主要用于测试。
+  final EvmAssetService? evmAssetService;
+
+  const HomeScreen({
+    super.key,
+    this.storageService,
+    this.blockfrostService,
+    this.evmAssetService,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -31,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
   WatchWallet? _currentWallet;
   List<WatchWallet> _wallets = [];
   List<AssetBalance> _assets = [];
+  List<EvmAssetBalance> _evmAssets = [];
   bool _loading = true;
   String? _error;
 
@@ -75,20 +87,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadBalances(WatchWallet wallet) async {
-    // EVM 链暂不支持余额查询
-    if (wallet.isEvm) {
-      if (!mounted) return;
-      setState(() {
-        _assets = [];
-        _loading = false;
-        _error = null;
-      });
-      return;
-    }
-
     setState(() => _loading = true);
     try {
-      final storage = await StorageService.create();
+      final storage = widget.storageService ?? await StorageService.create();
+
+      if (wallet.isEvm) {
+        final chainId = _resolveEvmChainId(wallet);
+        if (chainId == null) {
+          if (!mounted) return;
+          setState(() {
+            _error = '当前 EVM 钱包未指定链，请重新添加钱包';
+            _loading = false;
+          });
+          return;
+        }
+        final evmService =
+            widget.evmAssetService ?? EvmAssetService(EvmRpcService(), storage);
+        final assets = await evmService.loadBalances(chainId, wallet.address);
+        if (!mounted) return;
+        setState(() {
+          _evmAssets = assets;
+          _assets = [];
+          _loading = false;
+          _error = null;
+        });
+        return;
+      }
+
       final apiKey = await storage.getBlockfrostApiKey();
       if (apiKey == null || apiKey.isEmpty) {
         if (!mounted) return;
@@ -114,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         _assets = assets;
+        _evmAssets = [];
         _loading = false;
         _error = null;
       });
@@ -124,6 +150,22 @@ class _HomeScreenState extends State<HomeScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// 解析 EVM 钱包的链 ID。
+  ///
+  /// 新钱包会保存 [WatchWallet.chainId]（格式 `evm-{number}`）；
+  /// 旧钱包可能存储了 `"sepolia"` 等遗留格式，若 [ChainRegistry] 无法识别
+  /// 则回退到当前网络对应的 Ethereum 默认链。
+  /// 完全未保存 chainId 时同样回退到默认链。
+  String? _resolveEvmChainId(WatchWallet wallet) {
+    final stored = wallet.chainId;
+    // chainId 存在且被注册表识别 → 直接使用
+    if (stored != null && ChainRegistry.getConfig(stored) != null) {
+      return stored;
+    }
+    // 遗留格式（如 "sepolia"）或未保存 → 回退到 Ethereum 默认链
+    return AppConfig.isMainnet ? 'evm-1' : 'evm-11155111';
   }
 
   Future<void> _navigateSettings() async {
@@ -218,6 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .where((a) => a.isAda)
         .map((a) => _formatAda(a.quantity))
         .firstOrNull;
+    final evmNativeBalance = _evmAssets.where((a) => a.isNative).firstOrNull;
 
     return Column(
       children: [
@@ -235,16 +278,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildAddressRow(wallet),
                   const SizedBox(height: 24),
                   if (wallet.isCardano && adaBalance != null)
-                    _buildMainBalance(adaBalance),
+                    _buildMainBalance(adaBalance, 'ADA'),
                   if (wallet.isCardano && adaBalance == null)
                     const SizedBox(height: 32),
-                  if (wallet.isEvm) _buildEvmBalancePlaceholder(),
+                  if (wallet.isEvm && evmNativeBalance != null)
+                    _buildMainBalance(
+                      evmNativeBalance.formattedBalance,
+                      evmNativeBalance.symbol,
+                    ),
+                  if (wallet.isEvm && evmNativeBalance == null)
+                    const SizedBox(height: 32),
                   const SizedBox(height: 32),
                   _buildActionButtons(wallet),
                   const SizedBox(height: 32),
                   _buildAssetsHeader(),
                   const SizedBox(height: 8),
-                  _buildAssetsList(),
+                  _buildAssetsList(wallet),
                 ],
               ),
             ),
@@ -365,12 +414,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMainBalance(String balance) {
+  Widget _buildMainBalance(String balance, String symbol) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '$balance ADA',
+          '$balance $symbol',
           style: Theme.of(
             context,
           ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -442,29 +491,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// EVM 链余额占位提示
-  Widget _buildEvmBalancePlaceholder() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'EVM 链余额查询暂不支持',
-              style: TextStyle(color: Colors.orange.shade800),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAssetsHeader() {
     return Text(
       '代币',
@@ -474,13 +500,43 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAssetsList() {
+  Widget _buildAssetsList(WatchWallet wallet) {
     if (_loading) {
       return const Padding(
         padding: EdgeInsets.all(32.0),
         child: Center(child: CircularProgressIndicator()),
       );
     }
+
+    if (wallet.isEvm) {
+      if (_evmAssets.length <= 1) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 24.0),
+          child: Text('暂无 ERC-20 代币，请到设置页添加'),
+        );
+      }
+      final tokens = _evmAssets.where((a) => !a.isNative).toList();
+      return ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: tokens.length,
+        separatorBuilder: (context, index) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final asset = tokens[index];
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(asset.symbol),
+            subtitle: Text(
+              asset.contractAddress ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Text(asset.formattedBalance),
+          );
+        },
+      );
+    }
+
     if (_assets.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24.0),

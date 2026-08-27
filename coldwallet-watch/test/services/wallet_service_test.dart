@@ -3,41 +3,7 @@ import 'package:coldwallet_watch/models/watch_wallet.dart';
 import 'package:coldwallet_watch/services/storage_service.dart';
 import 'package:coldwallet_watch/services/wallet_service.dart';
 
-class FakeStorageService implements StorageService {
-  List<WatchWallet> _wallets = [];
-  String? _currentWalletId;
-
-  @override
-  Future<List<WatchWallet>> loadWallets() async => _wallets;
-
-  @override
-  Future<void> saveWallets(List<WatchWallet> wallets) async {
-    _wallets = wallets;
-  }
-
-  @override
-  Future<String?> getCurrentWalletId() async => _currentWalletId;
-
-  @override
-  Future<void> setCurrentWalletId(String id) async {
-    _currentWalletId = id;
-  }
-
-  @override
-  Future<String?> getBlockfrostApiKey() async => null;
-
-  @override
-  Future<void> setBlockfrostApiKey(String apiKey) async {}
-
-  @override
-  Future<void> deleteBlockfrostApiKey() async {}
-
-  @override
-  Future<List<String>> getEnabledAssets(String walletId) async => [];
-
-  @override
-  Future<void> setEnabledAssets(String walletId, List<String> units) async {}
-}
+import '../support/fake_storage_service.dart';
 
 void main() {
   group('WalletService current wallet', () {
@@ -189,11 +155,11 @@ void main() {
         name: 'EVM Wallet',
         address: '0x505dfdb3ea595c2a206b8db63621a3a64126b9ee',
         chainFamily: 'evm',
-        chainId: 'sepolia',
+        chainId: 'evm-11155111',
         network: 'preview',
       );
       expect(wallet.chainFamily, 'evm');
-      expect(wallet.chainId, 'sepolia');
+      expect(wallet.chainId, 'evm-11155111');
       expect(wallet.isEvm, isTrue);
       expect(wallet.isCardano, isFalse);
     });
@@ -219,12 +185,12 @@ void main() {
         name: 'EVM',
         address: '0x505dfdb3ea595c2a206b8db63621a3a64126b9ee',
         chainFamily: 'evm',
-        chainId: 'sepolia',
+        chainId: 'evm-11155111',
         network: 'preview',
       );
       final json = wallet.toJson();
       expect(json['chainFamily'], 'evm');
-      expect(json['chainId'], 'sepolia');
+      expect(json['chainId'], 'evm-11155111');
     });
 
     test('toJson omits chainId when null', () {

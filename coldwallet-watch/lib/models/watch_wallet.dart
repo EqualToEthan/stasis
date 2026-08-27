@@ -17,7 +17,7 @@ class WatchWallet {
   /// 链族标识：'cardano' 或 'evm'
   final String chainFamily;
 
-  /// 具体链 ID（EVM 链需要，如 'sepolia'、'bsc-testnet'）
+  /// 具体链 ID（EVM 链需要，格式 `evm-{number}`，如 'evm-11155111'、'evm-56'）
   final String? chainId;
 
   final String network;
