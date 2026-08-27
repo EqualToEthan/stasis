@@ -4,6 +4,8 @@
 # Hook runtime artifacts
 .qoder/hooks/.analyze.lock
 .qoder/hooks/analyze.log
+.qoder/hooks/stop-hook.log
+.qoder/review_diff.txt
 
 # CodeGraph binary index
 **/.codegraph/codegraph.db
