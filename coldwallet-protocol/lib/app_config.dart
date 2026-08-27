@@ -9,5 +9,5 @@
 /// 详见 ADR-0003。
 class AppConfig {
   /// 是否为主网模式。false = 测试网，true = 主网。
-  static bool isMainnet = false;
+  static bool isMainnet = true;
 }

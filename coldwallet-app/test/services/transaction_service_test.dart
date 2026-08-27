@@ -34,7 +34,8 @@ class _FakeWalletService extends WalletService {
 }
 
 void main() {
-  // 每个测试后重置为测试网，防止主网状态泄漏
+  // 每个测试前初始化为测试网，每个测试后重置回测试网
+  setUp(() => AppConfig.isMainnet = false);
   tearDown(() => AppConfig.isMainnet = false);
 
   group('TransactionService', () {

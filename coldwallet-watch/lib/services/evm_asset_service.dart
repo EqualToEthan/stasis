@@ -74,7 +74,6 @@ class EvmAssetService {
       'evm-1' || 'evm-11155111' => _NativeMeta('ETH', 18),
       'evm-56' || 'evm-97' => _NativeMeta('BNB', 18),
       'evm-42161' || 'evm-421614' => _NativeMeta('ETH', 18),
-      'evm-137' || 'evm-80002' => _NativeMeta('MATIC', 18),
       'evm-8453' || 'evm-84532' => _NativeMeta('ETH', 18),
       _ => _NativeMeta('ETH', 18),
     };

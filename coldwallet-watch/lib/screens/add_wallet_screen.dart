@@ -15,19 +15,12 @@ import '../widgets/qr_scanner.dart';
 /// 用户选择链族（Cardano / EVM），输入钱包名称和地址（支持 QR 扫描），
 /// 验证地址格式后保存到本地存储。
 /// Cardano 链支持 QR 扫描合并地址：`{"paymentAddress": "...", "stakeAddress": "..."}`。
-/// EVM 链支持选择具体 chainId（Sepolia / BSC Testnet 等）。
+/// EVM 链采用"地址即身份"模型，无需选择链，同一地址天然跨所有 EVM 链。
 class AddWalletScreen extends StatefulWidget {
   const AddWalletScreen({super.key});
 
   @override
   State<AddWalletScreen> createState() => _AddWalletScreenState();
-}
-
-/// EVM 链选项：显示名称 → chainId（根据 AppConfig.isMainnet 动态选组）
-List<MapEntry<String, String>> get _evmChainOptions {
-  return ChainRegistry.configsForFamily(
-    'evm',
-  ).map((c) => MapEntry(c.name, c.chainId)).toList();
 }
 
 class _AddWalletScreenState extends State<AddWalletScreen> {
@@ -43,7 +36,6 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
 
   // 链选择状态：null 表示尚未选择（等待扫码自动检测或手动选择）
   String? _chainFamily;
-  String? _evmChainId;
 
   @override
   void initState() {
@@ -57,10 +49,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     _walletService = WalletService(storage);
     await _loadWallets();
     if (!mounted) return;
-    setState(() {
-      _initialized = true;
-      _evmChainId = _evmChainOptions.firstOrNull?.value;
-    });
+    setState(() => _initialized = true);
   }
 
   /// 从 WalletService 重新加载钱包列表并刷新 UI。
@@ -166,7 +155,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             ? stakeAddress
             : null,
         chainFamily: _chainFamily!,
-        chainId: _chainFamily == 'evm' ? _evmChainId : null,
+        chainId: null,
         network: _network,
       );
       if (mounted) Navigator.pop(context, true);
@@ -404,28 +393,6 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: Colors.grey),
-              ),
-            ],
-            // EVM 专属：chainId 选择
-            if (_chainFamily == 'evm') ...[
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _evmChainId,
-                decoration: const InputDecoration(
-                  labelText: 'EVM 链',
-                  border: OutlineInputBorder(),
-                ),
-                items: _evmChainOptions
-                    .map(
-                      (e) =>
-                          DropdownMenuItem(value: e.value, child: Text(e.key)),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _evmChainId = value);
-                  }
-                },
               ),
             ],
             const SizedBox(height: 16),

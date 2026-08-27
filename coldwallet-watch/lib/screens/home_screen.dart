@@ -14,8 +14,10 @@ import '../services/wallet_service.dart';
 
 /// 观察钱包首页
 ///
-/// 展示钱包选择器、地址、ADA 余额、发送/收款入口和资产列表。
-/// 通过 Blockfrost API 查询链上余额，支持下拉刷新。
+/// 展示钱包选择器、地址、余额、发送/收款入口和资产列表。
+/// Cardano 通过 Blockfrost API 查询链上余额；
+/// EVM 通过链下拉列表切换，显示当前链的资产余额，后台预加载其他链。
+/// 支持下拉刷新。
 class HomeScreen extends StatefulWidget {
   /// 可选的 StorageService 注入，主要用于测试。
   final StorageService? storageService;
@@ -42,7 +44,8 @@ class _HomeScreenState extends State<HomeScreen> {
   WatchWallet? _currentWallet;
   List<WatchWallet> _wallets = [];
   List<AssetBalance> _assets = [];
-  List<EvmAssetBalance> _evmAssets = [];
+  Map<String, List<EvmAssetBalance>> _evmAssetsByChain = {};
+  String? _selectedEvmChainId;
   bool _loading = true;
   String? _error;
 
@@ -92,21 +95,20 @@ class _HomeScreenState extends State<HomeScreen> {
       final storage = widget.storageService ?? await StorageService.create();
 
       if (wallet.isEvm) {
-        final chainId = _resolveEvmChainId(wallet);
-        if (chainId == null) {
-          if (!mounted) return;
-          setState(() {
-            _error = '当前 EVM 钱包未指定链，请重新添加钱包';
-            _loading = false;
-          });
-          return;
+        if (_selectedEvmChainId == null) {
+          _selectedEvmChainId = AppConfig.isMainnet ? 'evm-1' : 'evm-11155111';
         }
-        final evmService =
-            widget.evmAssetService ?? EvmAssetService(EvmRpcService(), storage);
-        final assets = await evmService.loadBalances(chainId, wallet.address);
+        await _loadEvmChainBalances(wallet.address, _selectedEvmChainId!);
+        // 后台预加载其他链
+        final evmConfigs = ChainRegistry.configsForFamily('evm');
+        for (final config in evmConfigs) {
+          if (config.chainId != _selectedEvmChainId &&
+              !_evmAssetsByChain.containsKey(config.chainId)) {
+            _loadEvmChainBalances(wallet.address, config.chainId);
+          }
+        }
         if (!mounted) return;
         setState(() {
-          _evmAssets = assets;
           _assets = [];
           _loading = false;
           _error = null;
@@ -139,7 +141,8 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         _assets = assets;
-        _evmAssets = [];
+        _evmAssetsByChain = {};
+        _selectedEvmChainId = null;
         _loading = false;
         _error = null;
       });
@@ -152,20 +155,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// 解析 EVM 钱包的链 ID。
+  /// 加载指定 EVM 链的资产余额并缓存。
   ///
-  /// 新钱包会保存 [WatchWallet.chainId]（格式 `evm-{number}`）；
-  /// 旧钱包可能存储了 `"sepolia"` 等遗留格式，若 [ChainRegistry] 无法识别
-  /// 则回退到当前网络对应的 Ethereum 默认链。
-  /// 完全未保存 chainId 时同样回退到默认链。
-  String? _resolveEvmChainId(WatchWallet wallet) {
-    final stored = wallet.chainId;
-    // chainId 存在且被注册表识别 → 直接使用
-    if (stored != null && ChainRegistry.getConfig(stored) != null) {
-      return stored;
+  /// 使用 [widget.evmAssetService]（若注入）或新建实例查询。
+  /// 查询结果缓存在 [_evmAssetsByChain] 中，切换链时优先使用缓存。
+  Future<void> _loadEvmChainBalances(String address, String chainId) async {
+    final storage = widget.storageService ?? await StorageService.create();
+    final evmService =
+        widget.evmAssetService ?? EvmAssetService(EvmRpcService(), storage);
+    try {
+      final assets = await evmService.loadBalances(chainId, address);
+      if (!mounted) return;
+      setState(() => _evmAssetsByChain[chainId] = assets);
+    } catch (_) {
+      // 单链查询失败不影响其他链
     }
-    // 遗留格式（如 "sepolia"）或未保存 → 回退到 Ethereum 默认链
-    return AppConfig.isMainnet ? 'evm-1' : 'evm-11155111';
+  }
+
+  /// 切换 EVM 链下拉列表。
+  ///
+  /// 若目标链已有缓存余额则立即显示，否则触发异步加载。
+  void _switchEvmChain(String chainId) {
+    if (chainId == _selectedEvmChainId) return;
+    setState(() => _selectedEvmChainId = chainId);
+    if (_evmAssetsByChain.containsKey(chainId)) return;
+    final wallet = _currentWallet;
+    if (wallet == null || !wallet.isEvm) return;
+    _loadEvmChainBalances(wallet.address, chainId);
   }
 
   Future<void> _navigateSettings() async {
@@ -260,7 +276,12 @@ class _HomeScreenState extends State<HomeScreen> {
         .where((a) => a.isAda)
         .map((a) => _formatAda(a.quantity))
         .firstOrNull;
-    final evmNativeBalance = _evmAssets.where((a) => a.isNative).firstOrNull;
+    final currentEvmAssets = _selectedEvmChainId != null
+        ? _evmAssetsByChain[_selectedEvmChainId] ?? []
+        : <EvmAssetBalance>[];
+    final evmNativeBalance = currentEvmAssets
+        .where((a) => a.isNative)
+        .firstOrNull;
 
     return Column(
       children: [
@@ -385,15 +406,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  if (wallet.chainId != null) ...[
-                    const SizedBox(width: 4),
-                    Text(
-                      wallet.chainId!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey,
-                        fontSize: 10,
-                      ),
-                    ),
+                  if (wallet.isEvm) ...[
+                    const SizedBox(width: 8),
+                    _buildEvmChainSelector(),
                   ],
                 ],
               ),
@@ -411,6 +426,31 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: () => _copyAddress(wallet.address),
         ),
       ],
+    );
+  }
+
+  /// EVM 链下拉选择器（紧凑样式，嵌入地址行）
+  ///
+  /// 显示当前选中链的名称，点击可切换到其他 EVM 链。
+  /// 切换后优先使用缓存余额，无缓存时触发异步加载。
+  Widget _buildEvmChainSelector() {
+    final evmConfigs = ChainRegistry.configsForFamily('evm');
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: _selectedEvmChainId,
+        isDense: true,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10),
+        icon: const Icon(Icons.keyboard_arrow_down, size: 14),
+        items: evmConfigs
+            .map(
+              (c) => DropdownMenuItem(
+                value: c.chainId,
+                child: Text(c.name, style: const TextStyle(fontSize: 12)),
+              ),
+            )
+            .toList(),
+        onChanged: (v) => v != null ? _switchEvmChain(v) : null,
+      ),
     );
   }
 
@@ -509,13 +549,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (wallet.isEvm) {
-      if (_evmAssets.length <= 1) {
+      final currentEvm = _selectedEvmChainId != null
+          ? _evmAssetsByChain[_selectedEvmChainId] ?? []
+          : <EvmAssetBalance>[];
+      if (currentEvm.length <= 1) {
         return const Padding(
           padding: EdgeInsets.symmetric(vertical: 24.0),
           child: Text('暂无 ERC-20 代币，请到设置页添加'),
         );
       }
-      final tokens = _evmAssets.where((a) => !a.isNative).toList();
+      final tokens = currentEvm.where((a) => !a.isNative).toList();
       return ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),

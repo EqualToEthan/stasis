@@ -46,13 +46,6 @@ class ChainRegistry {
       network: 'sepolia',
       evmChainId: 421614,
     ),
-    'evm-80002': ChainConfig(
-      chainId: 'evm-80002',
-      chainFamily: 'evm',
-      name: 'Polygon Amoy',
-      network: 'amoy',
-      evmChainId: 80002,
-    ),
     'evm-84532': ChainConfig(
       chainId: 'evm-84532',
       chainFamily: 'evm',
@@ -92,13 +85,6 @@ class ChainRegistry {
       name: 'Arbitrum',
       network: 'mainnet',
       evmChainId: 42161,
-    ),
-    'evm-137': ChainConfig(
-      chainId: 'evm-137',
-      chainFamily: 'evm',
-      name: 'Polygon',
-      network: 'mainnet',
-      evmChainId: 137,
     ),
     'evm-8453': ChainConfig(
       chainId: 'evm-8453',

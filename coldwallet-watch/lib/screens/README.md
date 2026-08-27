@@ -7,11 +7,11 @@
 | 文件 | 主要类 | 功能说明 |
 |------|--------|----------|
 | about_screen.dart | AboutScreen | 关于页面，展示应用名称、版本号和简短说明 |
-| add_wallet_screen.dart | AddWalletScreen | 钱包管理页面，上方展示已有钱包列表（支持重命名和删除），下方提供添加新只读钱包的表单。链类型初始无预选（由扫码自动检测或手动选择），支持 Cardano / EVM，EVM 支持选择具体 chainId |
+| add_wallet_screen.dart | AddWalletScreen | 钱包管理页面，上方展示已有钱包列表（支持重命名和删除），下方提供添加新只读钱包的表单。链类型初始无预选（由扫码自动检测或手动选择），支持 Cardano / EVM；EVM 采用"地址即身份"模型，无需选择具体链，同一地址天然跨所有 EVM 链（ADR 0007） |
 | evm_rpc_chain_list_screen.dart | EvmRpcChainListScreen | EVM RPC 链列表页，摘要展示各链当前使用的是默认 RPC 还是自定义 RPC，点击单链进入详情页 |
 | evm_rpc_edit_screen.dart | EvmRpcEditScreen | 单条 EVM 链的 RPC 编辑页，可输入自定义 URL 或恢复默认 |
 | export_tx_screen.dart | ExportTxScreen | 导出未签名交易，只保留二维码和 JSON 文本两种导出方式；交易详情（发送方、接收方、金额、手续费等）在 coldwallet-app 签名页展示，本页不再重复 |
-| home_screen.dart | HomeScreen | 首页，展示钱包选择器、地址（带链族徽章）、余额（Cardano Blockfrost / EVM RPC）、发送/收款/质押/治理委托入口和资产列表；错误时保留 AppBar，错误内嵌显示 |
+| home_screen.dart | HomeScreen | 首页，展示钱包选择器、地址（带链族徽章）、余额（Cardano Blockfrost / EVM RPC）、发送/收款/质押/治理委托入口和资产列表；EVM 钱包通过链下拉列表切换查看各链资产，当前链优先加载 + 后台预填充（ADR 0007）；错误时保留 AppBar，错误内嵌显示 |
 | import_signed_screen.dart | ImportSignedScreen | 导入已签名交易，进入后先让用户选择扫码/粘贴 JSON 两种方式，解析 ColdImport 后用 InfoCard 卡片风格展示 TxHash 和签名数据摘要，用户确认后才提交到链上 |
 | manage_evm_tokens_screen.dart | ManageEvmTokensScreen | EVM 单链代币管理页，添加/删除该链的 ERC-20 合约地址，添加前通过 RPC 实时校验合约是否可读；可从 [TokenManagementScreen] 按链进入 |
 | network_api_settings_screen.dart | NetworkApiSettingsScreen | 网络与 API 设置页，展示当前网络、保存 Blockfrost API Key，并提供 EVM RPC 端点设置入口 |
@@ -49,10 +49,11 @@ SettingsScreen → AboutScreen
 | 我想... | 修改文件 |
 |---------|---------|
 | 修改首页布局或显示内容 | home_screen.dart — 修改 _buildBody 及各 _buildXxx 方法 |
+| 修改首页 EVM 链切换交互 | home_screen.dart — 修改 _buildEvmChainSelector 及 _switchEvmChain |
 | 添加新的首页操作按钮 | home_screen.dart — 在 _buildActionButtons 中添加 _ActionButton |
 | 修改发送页面的表单字段 | send_screen.dart — 修改 build 方法中的 TextField |
 | 添加新的交易导出方式 | export_tx_screen.dart — 添加新的按钮和处理函数 |
-| 修改添加钱包的链选项 | add_wallet_screen.dart — 修改 _evmChainOptions 常量或链族下拉 items |
+| 修改添加钱包的链选项 | add_wallet_screen.dart — 修改链族下拉 items（EVM 无 chainId 选择，ADR 0007） |
 | 修改重命名校验逻辑 | add_wallet_screen.dart — 修改 _showRenameDialog 中的非空和重名校验 |
 | 修改地址验证规则 | add_wallet_screen.dart — 修改 _save 方法中的校验逻辑（实际校验在 WalletService） |
 | 修改设置入口的分类项 | settings_screen.dart — 调整 _CategoryCard 列表 |

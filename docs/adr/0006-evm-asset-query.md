@@ -2,14 +2,14 @@
 
 ## 背景
 
-coldwallet-watch 当前已支持添加 EVM 观察钱包并识别链族，但 `HomeScreen` 对 EVM 钱包直接跳过余额查询，显示 "EVM 链余额查询暂不支持"。随着产品需要覆盖 Ethereum、BSC、Arbitrum、Polygon、Base 等多条 EVM 链，必须在观察端补齐 EVM 资产余额展示能力。
+coldwallet-watch 当前已支持添加 EVM 观察钱包并识别链族，但 `HomeScreen` 对 EVM 钱包直接跳过余额查询，显示 "EVM 链余额查询暂不支持"。随着产品需要覆盖 Ethereum、BSC、Arbitrum、Base 等多条 EVM 链，必须在观察端补齐 EVM 资产余额展示能力。
 
 本次范围限定为：读取型余额查询，不涉及交易构建或签名。
 
 ## 决策
 
 1. **资产范围**
-   - 原生代币（ETH、BNB、MATIC 等）+ ERC-20 同质化代币。
+   - 原生代币（ETH、BNB 等）+ ERC-20 同质化代币。
    - 不包含 NFT（ERC-721 / ERC-1155），后续单独评估。
    - USDT、USDC 及各类 ERC-20 股票/证券型代币，只要符合 ERC-20 标准即可查询。
 
@@ -34,11 +34,10 @@ coldwallet-watch 当前已支持添加 EVM 观察钱包并识别链族，但 `Ho
    - 进入页面自动刷新一次余额；支持下拉手动刷新。
 
 6. **链覆盖**
-   - 支持 `ChainRegistry` 中已配置的全部 5 条 EVM 链及其测试网：
+   - 支持 `ChainRegistry` 中已配置的全部 4 条 EVM 链及其测试网：
      - Ethereum（mainnet / Sepolia）
      - BSC（mainnet / Chapel testnet）
      - Arbitrum（mainnet / Sepolia）
-     - Polygon（mainnet / Amoy）
      - Base（mainnet / Sepolia）
 
 7. **数据模型**

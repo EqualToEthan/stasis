@@ -1,6 +1,6 @@
 # services 模块
 
-冷钱包的核心业务逻辑层。封装了安全存储、钱包密钥管理、多链地址派生和交易签名等关键功能。通过链适配器模式支持 Cardano、EVM（Ethereum/BSC/Arbitrum/Polygon/Base）等多链族。完全离线运行，所有敏感数据通过 Android Keystore 加密存储。
+冷钱包的核心业务逻辑层。封装了安全存储、钱包密钥管理、多链地址派生和交易签名等关键功能。通过链适配器模式支持 Cardano、EVM（Ethereum/BSC/Arbitrum/Base）等多链族。完全离线运行，所有敏感数据通过 Android Keystore 加密存储。
 
 ## 文件清单
 

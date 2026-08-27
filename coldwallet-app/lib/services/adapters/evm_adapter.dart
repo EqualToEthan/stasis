@@ -13,7 +13,7 @@ import 'chain_adapter.dart';
 
 /// EVM 链适配器。
 ///
-/// 覆盖所有 EVM 兼容链（Ethereum、BSC、Arbitrum、Polygon、Base 等），
+/// 覆盖所有 EVM 兼容链（Ethereum、BSC、Arbitrum、Base 等），
 /// 通过 [ChainConfig.evmChainId] 区分不同链。使用 secp256k1 密钥派生
 /// （BIP-44 m/44'/60'/0'/0/0）和 EIP-155 / EIP-1559 交易签名。
 class EvmAdapter implements ChainAdapter {

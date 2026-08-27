@@ -2,7 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:coldwallet_app/services/chain_registry.dart';
 
 void main() {
-  // 每个测试后重置为测试网，防止主网状态泄漏
+  // 每个测试前初始化为测试网，每个测试后重置回测试网
+  setUp(() => AppConfig.isMainnet = false);
   tearDown(() => AppConfig.isMainnet = false);
 
   group('ChainRegistry.resolveChainId', () {
@@ -143,16 +144,16 @@ void main() {
       expect(configs.any((c) => c.chainId == 'cardano-preview'), isFalse);
     });
 
-    test('默认测试网: configsForFamily(evm) 返回 5 条测试网配置', () {
+    test('默认测试网: configsForFamily(evm) 返回 4 条测试网配置', () {
       final evmConfigs = ChainRegistry.configsForFamily('evm');
-      expect(evmConfigs.length, 5);
+      expect(evmConfigs.length, 4);
       expect(evmConfigs.any((c) => c.chainId == 'evm-11155111'), isTrue);
     });
 
-    test('主网模式: configsForFamily(evm) 返回 5 条主网配置', () {
+    test('主网模式: configsForFamily(evm) 返回 4 条主网配置', () {
       AppConfig.isMainnet = true;
       final evmConfigs = ChainRegistry.configsForFamily('evm');
-      expect(evmConfigs.length, 5);
+      expect(evmConfigs.length, 4);
       expect(evmConfigs.any((c) => c.chainId == 'evm-1'), isTrue);
     });
 

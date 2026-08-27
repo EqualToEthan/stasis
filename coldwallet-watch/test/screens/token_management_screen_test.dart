@@ -10,6 +10,9 @@ import '../support/fake_storage_service.dart';
 
 void main() {
   group('TokenManagementScreen', () {
+    setUp(() {
+      AppConfig.isMainnet = false;
+    });
     tearDown(() {
       AppConfig.isMainnet = false;
     });

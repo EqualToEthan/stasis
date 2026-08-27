@@ -3,7 +3,8 @@ import 'package:coldwallet_protocol/coldwallet_protocol.dart';
 import 'package:coldwallet_app/services/wallet_service.dart';
 
 void main() {
-  // 每个测试后重置为测试网，防止主网状态泄漏
+  // 每个测试前初始化为测试网，每个测试后重置回测试网
+  setUp(() => AppConfig.isMainnet = false);
   tearDown(() => AppConfig.isMainnet = false);
   group('WalletService.deriveStakeAddress', () {
     // 标准 BIP-39 测试向量（12 词），与 evm_adapter_test 共用
