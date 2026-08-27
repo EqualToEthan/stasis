@@ -13,9 +13,7 @@ void main() {
   group('SettingsScreen category list', () {
     testWidgets('shows all setting categories', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: SettingsScreen(storageService: FakeStorageService()),
-        ),
+        MaterialApp(home: SettingsScreen(storageService: FakeStorageService())),
       );
       await tester.pumpAndSettle();
 
@@ -26,9 +24,7 @@ void main() {
 
     testWidgets('navigates to NetworkApiSettingsScreen', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: SettingsScreen(storageService: FakeStorageService()),
-        ),
+        MaterialApp(home: SettingsScreen(storageService: FakeStorageService())),
       );
       await tester.pumpAndSettle();
 
@@ -40,9 +36,7 @@ void main() {
 
     testWidgets('navigates to TokenManagementScreen', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: SettingsScreen(storageService: FakeStorageService()),
-        ),
+        MaterialApp(home: SettingsScreen(storageService: FakeStorageService())),
       );
       await tester.pumpAndSettle();
 
@@ -54,9 +48,7 @@ void main() {
 
     testWidgets('navigates to AboutScreen', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: SettingsScreen(storageService: FakeStorageService()),
-        ),
+        MaterialApp(home: SettingsScreen(storageService: FakeStorageService())),
       );
       await tester.pumpAndSettle();
 

@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 
 import '../support/fake_storage_service.dart';
 
-
 /// 继承具体实现以覆盖所有 RPC 方法，避免真实网络请求。
 class _FakeEvmRpcService extends EvmRpcService {
   final Map<String, BigInt> balances;
