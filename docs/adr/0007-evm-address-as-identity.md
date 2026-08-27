@@ -6,7 +6,7 @@
 
 ## 背景
 
-EVM 链族中，同一个私钥在所有 EVM 链（Ethereum、BSC、Arbitrum、Base）上派生出**完全相同的地址**——地址由公钥的 Keccak-256 哈希后 20 字节决定，与链无关。
+EVM 链族中，同一个私钥在所有 EVM 链（BSC、Arbitrum、Base）上派生出**完全相同的地址**——地址由公钥的 Keccak-256 哈希后 20 字节决定，与链无关。
 
 这与 Cardano 有本质区别：Cardano 不同网络（preview / mainnet）产生不同的地址。
 

@@ -155,11 +155,11 @@ void main() {
         name: 'EVM Wallet',
         address: '0x505dfdb3ea595c2a206b8db63621a3a64126b9ee',
         chainFamily: 'evm',
-        chainId: 'evm-11155111',
+        chainId: 'evm-97',
         network: 'preview',
       );
       expect(wallet.chainFamily, 'evm');
-      expect(wallet.chainId, 'evm-11155111');
+      expect(wallet.chainId, 'evm-97');
       expect(wallet.isEvm, isTrue);
       expect(wallet.isCardano, isFalse);
     });
@@ -185,12 +185,12 @@ void main() {
         name: 'EVM',
         address: '0x505dfdb3ea595c2a206b8db63621a3a64126b9ee',
         chainFamily: 'evm',
-        chainId: 'evm-11155111',
+        chainId: 'evm-97',
         network: 'preview',
       );
       final json = wallet.toJson();
       expect(json['chainFamily'], 'evm');
-      expect(json['chainId'], 'evm-11155111');
+      expect(json['chainId'], 'evm-97');
     });
 
     test('toJson omits chainId when null', () {

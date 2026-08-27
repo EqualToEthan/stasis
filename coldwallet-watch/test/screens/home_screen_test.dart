@@ -116,7 +116,7 @@ void main() {
         name: 'EVM Wallet',
         address: '0xDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEf',
         chainFamily: 'evm',
-        chainId: 'evm-1',
+        chainId: 'evm-56',
         network: 'mainnet',
       );
 
@@ -129,7 +129,7 @@ void main() {
             ),
             evmAssetService: _FakeEvmAssetService([
               EvmAssetBalance(
-                symbol: 'ETH',
+                symbol: 'BNB',
                 decimals: 18,
                 balanceInWei: '2500000000000000000',
               ),
@@ -146,7 +146,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('2.5 ETH'), findsOneWidget);
+      expect(find.text('2.5 BNB'), findsOneWidget);
       expect(find.text('USDT'), findsOneWidget);
       expect(find.text('1'), findsWidgets);
       expect(find.text('质押'), findsNothing);
@@ -160,7 +160,7 @@ void main() {
         name: 'EVM Wallet',
         address: '0xDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEf',
         chainFamily: 'evm',
-        chainId: 'evm-1',
+        chainId: 'evm-56',
         network: 'mainnet',
       );
 

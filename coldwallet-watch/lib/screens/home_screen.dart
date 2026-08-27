@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (wallet.isEvm) {
         if (_selectedEvmChainId == null) {
-          _selectedEvmChainId = AppConfig.isMainnet ? 'evm-1' : 'evm-11155111';
+          _selectedEvmChainId = AppConfig.isMainnet ? 'evm-56' : 'evm-97';
         }
         await _loadEvmChainBalances(wallet.address, _selectedEvmChainId!);
         // 后台预加载其他链

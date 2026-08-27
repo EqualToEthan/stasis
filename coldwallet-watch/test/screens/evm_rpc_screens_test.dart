@@ -24,20 +24,20 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Ethereum Sepolia'), findsOneWidget);
+      expect(find.text('BSC Testnet'), findsOneWidget);
       expect(find.text('默认 RPC'), findsWidgets);
     });
 
     testWidgets('shows custom RPC summary', (tester) async {
       final storage = FakeStorageService();
-      await storage.setEvmRpcUrl('evm-11155111', 'https://custom.sepolia.rpc');
+      await storage.setEvmRpcUrl('evm-97', 'https://custom.bsc.rpc');
 
       await tester.pumpWidget(
         MaterialApp(home: EvmRpcChainListScreen(storageService: storage)),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('自定义：https://custom.sepolia.rpc'), findsOneWidget);
+      expect(find.text('自定义：https://custom.bsc.rpc'), findsOneWidget);
     });
 
     testWidgets('navigates to EvmRpcEditScreen', (tester) async {
@@ -48,11 +48,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Ethereum Sepolia'));
+      await tester.tap(find.text('BSC Testnet'));
       await tester.pumpAndSettle();
 
       expect(find.byType(EvmRpcEditScreen), findsOneWidget);
-      expect(find.text('Ethereum Sepolia'), findsWidgets);
+      expect(find.text('BSC Testnet'), findsWidgets);
     });
   });
 
@@ -63,7 +63,7 @@ void main() {
 
     testWidgets('saves custom RPC URL and pops', (tester) async {
       final storage = FakeStorageService();
-      final chain = ChainRegistry.getConfig('evm-11155111')!;
+      final chain = ChainRegistry.getConfig('evm-97')!;
       bool? poppedResult;
 
       await tester.pumpWidget(
@@ -92,15 +92,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(poppedResult, isTrue);
-      expect(
-        await storage.getEvmRpcUrl('evm-11155111'),
-        'https://my.sepolia.rpc',
-      );
+      expect(await storage.getEvmRpcUrl('evm-97'), 'https://my.sepolia.rpc');
     });
 
     testWidgets('restore default clears the input', (tester) async {
       final storage = FakeStorageService();
-      final chain = ChainRegistry.getConfig('evm-11155111')!;
+      final chain = ChainRegistry.getConfig('evm-97')!;
 
       await tester.pumpWidget(
         MaterialApp(

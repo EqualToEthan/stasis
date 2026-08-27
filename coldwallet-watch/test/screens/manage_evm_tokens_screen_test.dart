@@ -33,7 +33,7 @@ class _FakeEvmRpcService extends EvmRpcService {
 void main() {
   group('ManageEvmTokensScreen', () {
     setUp(() {
-      // 默认选中第一个 EVM 链；测试数据使用 evm-1，因此切换到主网。
+      // 默认选中第一个 EVM 链；测试数据使用 evm-56，因此切换到主网。
       AppConfig.isMainnet = true;
     });
 
@@ -102,7 +102,7 @@ void main() {
     testWidgets('deletes a token contract', (tester) async {
       final storage = FakeStorageService(
         evmTokenContracts: {
-          'evm-1': ['0xdac17f958d2ee523a2206206994597c13d831ec7'],
+          'evm-56': ['0xdac17f958d2ee523a2206206994597c13d831ec7'],
         },
       );
 
@@ -135,7 +135,7 @@ void main() {
           home: ManageEvmTokensScreen(
             storageService: FakeStorageService(),
             rpcService: _FakeEvmRpcService(),
-            initialChainId: 'evm-11155111',
+            initialChainId: 'evm-97',
           ),
         ),
       );

@@ -4,7 +4,7 @@
 /// 定义在 coldwallet-protocol 中，由 ChainRegistry 维护测试网和主网两组配置，
 /// 运行时由 AppConfig 决定激活哪组。
 class ChainConfig {
-  /// 唯一标识，如 "cardano-preview"、"evm-11155111"
+  /// 唯一标识，如 "cardano-preview"、"evm-97"
   final String chainId;
 
   /// 链族标识："cardano"、"evm"、"bitcoin"

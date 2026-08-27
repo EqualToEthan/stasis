@@ -49,38 +49,36 @@ void main() {
       expect(find.text('仅接收 Cardano Mainnet 网络的资产'), findsOneWidget);
     });
 
-    testWidgets('shows Ethereum Sepolia for testnet EVM wallet', (
-      tester,
-    ) async {
+    testWidgets('shows BSC Testnet for testnet EVM wallet', (tester) async {
       AppConfig.isMainnet = false;
       final wallet = WatchWallet.create(
-        name: 'Ethereum Wallet',
+        name: 'BSC Wallet',
         address: '0x1234567890123456789012345678901234567890',
         chainFamily: 'evm',
-        chainId: 'evm-11155111',
-        network: 'sepolia',
+        chainId: 'evm-97',
+        network: 'testnet',
       );
 
       await tester.pumpWidget(_buildApp(wallet));
       await tester.pumpAndSettle();
 
-      expect(find.text('仅接收 Ethereum Sepolia 网络的资产'), findsOneWidget);
+      expect(find.text('仅接收 BSC Testnet 网络的资产'), findsOneWidget);
     });
 
-    testWidgets('shows Ethereum for mainnet EVM wallet', (tester) async {
+    testWidgets('shows BSC for mainnet EVM wallet', (tester) async {
       AppConfig.isMainnet = true;
       final wallet = WatchWallet.create(
-        name: 'Ethereum Wallet',
+        name: 'BSC Wallet',
         address: '0x1234567890123456789012345678901234567890',
         chainFamily: 'evm',
-        chainId: 'evm-1',
+        chainId: 'evm-56',
         network: 'mainnet',
       );
 
       await tester.pumpWidget(_buildApp(wallet));
       await tester.pumpAndSettle();
 
-      expect(find.text('仅接收 Ethereum 网络的资产'), findsOneWidget);
+      expect(find.text('仅接收 BSC 网络的资产'), findsOneWidget);
     });
   });
 }

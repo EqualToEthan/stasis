@@ -75,18 +75,15 @@ void main() {
     });
 
     test('returns message with friendly names on mismatch', () {
-      final msg = ChainRegistry.mismatchMessage('evm-11155111', 'evm-97');
+      final msg = ChainRegistry.mismatchMessage('evm-97', 'evm-421614');
       expect(msg, isNotNull);
-      expect(msg!, contains('Ethereum Sepolia'));
-      expect(msg, contains('BSC Testnet'));
+      expect(msg!, contains('BSC Testnet'));
+      expect(msg, contains('Arbitrum Sepolia'));
       expect(msg, contains('请切换链后重试'));
     });
 
     test('falls back to raw chainId when config not found', () {
-      final msg = ChainRegistry.mismatchMessage(
-        'evm-11155111',
-        'unknown-chain',
-      );
+      final msg = ChainRegistry.mismatchMessage('evm-97', 'unknown-chain');
       expect(msg, isNotNull);
       expect(msg!, contains('unknown-chain'));
     });
@@ -101,9 +98,9 @@ void main() {
     test('cardano scanned does NOT match selected evm chain', () {
       final json = <String, dynamic>{'type': 'unsigned-tx'};
       final scanned = ChainRegistry.resolveChainId(json);
-      final msg = ChainRegistry.mismatchMessage('evm-11155111', scanned);
+      final msg = ChainRegistry.mismatchMessage('evm-97', scanned);
       expect(msg, isNotNull);
-      expect(msg!, contains('Ethereum Sepolia'));
+      expect(msg!, contains('BSC Testnet'));
       expect(msg, contains('Cardano Preview'));
     });
   });
@@ -132,7 +129,7 @@ void main() {
     test('默认测试网: allConfigs 返回测试网配置', () {
       final configs = ChainRegistry.allConfigs();
       expect(configs.any((c) => c.chainId == 'cardano-preview'), isTrue);
-      expect(configs.any((c) => c.chainId == 'evm-11155111'), isTrue);
+      expect(configs.any((c) => c.chainId == 'evm-97'), isTrue);
       expect(configs.any((c) => c.chainId == 'cardano-mainnet'), isFalse);
     });
 
@@ -140,29 +137,29 @@ void main() {
       AppConfig.isMainnet = true;
       final configs = ChainRegistry.allConfigs();
       expect(configs.any((c) => c.chainId == 'cardano-mainnet'), isTrue);
-      expect(configs.any((c) => c.chainId == 'evm-1'), isTrue);
+      expect(configs.any((c) => c.chainId == 'evm-56'), isTrue);
       expect(configs.any((c) => c.chainId == 'cardano-preview'), isFalse);
     });
 
-    test('默认测试网: configsForFamily(evm) 返回 4 条测试网配置', () {
+    test('默认测试网: configsForFamily(evm) 返回 3 条测试网配置', () {
       final evmConfigs = ChainRegistry.configsForFamily('evm');
-      expect(evmConfigs.length, 4);
-      expect(evmConfigs.any((c) => c.chainId == 'evm-11155111'), isTrue);
+      expect(evmConfigs.length, 3);
+      expect(evmConfigs.any((c) => c.chainId == 'evm-97'), isTrue);
     });
 
-    test('主网模式: configsForFamily(evm) 返回 4 条主网配置', () {
+    test('主网模式: configsForFamily(evm) 返回 3 条主网配置', () {
       AppConfig.isMainnet = true;
       final evmConfigs = ChainRegistry.configsForFamily('evm');
-      expect(evmConfigs.length, 4);
-      expect(evmConfigs.any((c) => c.chainId == 'evm-1'), isTrue);
+      expect(evmConfigs.length, 3);
+      expect(evmConfigs.any((c) => c.chainId == 'evm-56'), isTrue);
     });
 
     test('主网模式: mismatchMessage 使用主网链名', () {
       AppConfig.isMainnet = true;
-      final msg = ChainRegistry.mismatchMessage('cardano-mainnet', 'evm-1');
+      final msg = ChainRegistry.mismatchMessage('cardano-mainnet', 'evm-56');
       expect(msg, isNotNull);
       expect(msg!, contains('Cardano Mainnet'));
-      expect(msg, contains('Ethereum'));
+      expect(msg, contains('BSC'));
     });
   });
 }

@@ -12,12 +12,10 @@ class EvmRpcConfig {
   /// 若某个端点不可用，用户可在设置页自行覆盖。
   static const Map<String, String> defaultRpcUrls = {
     // 主网
-    'evm-1': 'https://eth.llamarpc.com',
     'evm-56': 'https://bsc-dataseed.binance.org',
     'evm-42161': 'https://arb1.arbitrum.io/rpc',
     'evm-8453': 'https://mainnet.base.org',
     // 测试网
-    'evm-11155111': 'https://ethereum-sepolia-rpc.publicnode.com',
     'evm-97': 'https://data-seed-prebsc-1-s1.binance.org:8545',
     'evm-421614': 'https://sepolia-rollup.arbitrum.io/rpc',
     'evm-84532': 'https://sepolia.base.org',

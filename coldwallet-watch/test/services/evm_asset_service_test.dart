@@ -57,22 +57,22 @@ class _FakeEvmRpcService extends EvmRpcService {
 void main() {
   group('EvmAssetService', () {
     setUp(() {
-      // evm-1 等主网 chainId 仅在 mainnet 配置组中，测试前切换到主网。
+      // evm-56 等主网 chainId 仅在 mainnet 配置组中，测试前切换到主网。
       AppConfig.isMainnet = true;
     });
 
     tearDown(() {
       AppConfig.isMainnet = false;
     });
-    test('loads native token for Ethereum mainnet', () async {
+    test('loads native token for BSC mainnet', () async {
       final rpc = _FakeEvmRpcService(
         balances: {'0xwallet': BigInt.from(1500000000000000000)},
       );
       final storage = FakeStorageService();
       final service = EvmAssetService(rpc, storage);
-      final assets = await service.loadBalances('evm-1', '0xWallet');
+      final assets = await service.loadBalances('evm-56', '0xWallet');
       expect(assets.length, 1);
-      expect(assets.first.symbol, 'ETH');
+      expect(assets.first.symbol, 'BNB');
       expect(assets.first.formattedBalance, '1.5');
       expect(assets.first.isNative, isTrue);
     });
@@ -86,13 +86,13 @@ void main() {
       );
       final storage = FakeStorageService(
         evmTokenContracts: {
-          'evm-1': ['0xUSDC'],
+          'evm-56': ['0xUSDC'],
         },
       );
       final service = EvmAssetService(rpc, storage);
-      final assets = await service.loadBalances('evm-1', '0xWallet');
+      final assets = await service.loadBalances('evm-56', '0xWallet');
       expect(assets.length, 2);
-      expect(assets[0].symbol, 'ETH');
+      expect(assets[0].symbol, 'BNB');
       expect(assets[0].isNative, isTrue);
       expect(assets[1].symbol, 'USDC');
       expect(assets[1].formattedBalance, '2');
@@ -102,10 +102,10 @@ void main() {
     test('uses custom RPC URL when configured', () async {
       final rpc = _FakeEvmRpcService(balances: {'0xwallet': BigInt.one});
       final storage = FakeStorageService(
-        evmRpcUrls: {'evm-1': 'https://custom.rpc'},
+        evmRpcUrls: {'evm-56': 'https://custom.rpc'},
       );
       final service = EvmAssetService(rpc, storage);
-      final assets = await service.loadBalances('evm-1', '0xWallet');
+      final assets = await service.loadBalances('evm-56', '0xWallet');
       expect(assets.first.balanceInWei, '1');
     });
 
@@ -128,11 +128,11 @@ void main() {
       );
       final storage = FakeStorageService(
         evmTokenContracts: {
-          'evm-1': ['0xGood', '0xBad'],
+          'evm-56': ['0xGood', '0xBad'],
         },
       );
       final service = EvmAssetService(rpc, storage);
-      final assets = await service.loadBalances('evm-1', '0xWallet');
+      final assets = await service.loadBalances('evm-56', '0xWallet');
       expect(assets.length, 2); // native + good
       expect(assets.any((a) => a.symbol == 'GOOD'), isTrue);
       expect(assets.any((a) => a.contractAddress == '0xBad'), isFalse);
@@ -142,7 +142,7 @@ void main() {
       final rpc = _FakeEvmRpcService(balances: {'0xwallet': BigInt.two});
       final storage = FakeStorageService();
       final service = EvmAssetService(rpc, storage);
-      final assets = await service.loadBalances('evm-1', '0xWallet');
+      final assets = await service.loadBalances('evm-56', '0xWallet');
       expect(assets.first.balanceInWei, '2');
     });
   });

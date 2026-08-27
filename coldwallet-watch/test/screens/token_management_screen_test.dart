@@ -26,7 +26,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('代币管理'), findsOneWidget);
-      expect(find.text('Ethereum Sepolia'), findsOneWidget);
+      expect(find.text('BSC Testnet'), findsOneWidget);
     });
 
     testWidgets('navigates to ManageEvmTokensScreen with initial chain', (
@@ -39,7 +39,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Ethereum Sepolia'));
+      await tester.tap(find.text('BSC Testnet'));
       await tester.pumpAndSettle();
 
       expect(find.byType(ManageEvmTokensScreen), findsOneWidget);

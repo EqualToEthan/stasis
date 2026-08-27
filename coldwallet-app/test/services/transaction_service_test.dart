@@ -51,7 +51,7 @@ void main() {
 
         final rawJson =
             '{"version":1,"type":"unsigned-tx",'
-            '"chainId":"evm-11155111","rawTxHex":"0xabcdef",'
+            '"chainId":"evm-97","rawTxHex":"0xabcdef",'
             '"summary":{"fromAddress":"0x0000000000000000000000000000000000000001",'
             '"toAddress":"0x0000000000000000000000000000000000000002",'
             '"value":"1000","fee":"21000","nonce":1}}';
@@ -71,7 +71,7 @@ void main() {
         // 改成仅最后一位不同，且全小写，验证大小写不敏感比较不会误判。
         final rawJson =
             '{"version":1,"type":"unsigned-tx",'
-            '"chainId":"evm-11155111","rawTxHex":"0xabcdef",'
+            '"chainId":"evm-97","rawTxHex":"0xabcdef",'
             '"summary":{"fromAddress":"0x9858effd232b4033e47d90003d41ec34ecaeda93",'
             '"toAddress":"0x0000000000000000000000000000000000000002",'
             '"value":"1000","fee":"21000","nonce":1}}';
