@@ -56,6 +56,14 @@ _Avoid_: 链管理器
 coldwallet-app 专属的链适配器查找表，提供 chainFamily → ChainAdapter 映射。从 ChainRegistry 拆出，因适配器含私钥派生和签名逻辑，不放入共享包。
 _Avoid_: 链适配器管理器
 
+**RPC 端点（RPC Endpoint）**:
+EVM 链族的数据查询入口地址，一条链一个端点，互相独立、不可合并。公共端点无需凭证；每链可单独覆盖默认端点，默认端点内置无需配置。
+_Avoid_: API 地址、节点地址（口语可用）
+
+**API Key（API 凭证）**:
+第三方数据服务的认证凭证（如 Blockfrost Project ID），证明调用者身份。与 RPC 端点是不同维度：Key 回答“我是谁”，端点回答“去哪查”。
+_Avoid_: API 地址 KEY（混用了两个概念）
+
 **链适配器（ChainAdapter）**:
 链族级别的抽象接口，封装地址派生、交易解析和签名的链特有逻辑。当前实现：CardanoAdapter、EvmAdapter。
 _Avoid_: 链服务、链处理器

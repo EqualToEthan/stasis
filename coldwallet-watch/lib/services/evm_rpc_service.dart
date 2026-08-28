@@ -7,10 +7,16 @@ import 'package:http/http.dart' as http;
 ///
 /// 基于现有 `http` 依赖封装的极简 JSON-RPC 客户端，仅支持本次需要的
 /// `eth_getBalance` 和 `eth_call`，不引入 `web3dart`。
+///
+/// 所有请求统一 15 秒超时：端点挂死（连接后无响应）时快速失败，
+/// 避免单链查询卡死整个余额加载（见 ADR-0008）。
 class EvmRpcService {
   final http.Client _client;
 
   EvmRpcService({http.Client? client}) : _client = client ?? http.Client();
+
+  /// 单次 RPC 请求的超时时长。
+  static const _requestTimeout = Duration(seconds: 15);
 
   /// ERC-20 函数选择器（keccak256 前 4 字节）。
   static const _selectorBalanceOf = '0x70a08231';
@@ -80,11 +86,13 @@ class EvmRpcService {
       'method': method,
       'params': params,
     });
-    final response = await _client.post(
-      Uri.parse(rpcUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: payload,
-    );
+    final response = await _client
+        .post(
+          Uri.parse(rpcUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: payload,
+        )
+        .timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw Exception('RPC HTTP ${response.statusCode}: ${response.body}');

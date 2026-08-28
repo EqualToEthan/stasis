@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-多链冷钱包系统，支持 Cardano、EVM（BSC/Arbitrum/Base）等链族，包含两个 Flutter 应用：
+多链冷钱包系统，支持 Cardano、EVM（Ethereum/BSC/Arbitrum/Base）等链族，包含两个 Flutter 应用：
 
 | 子项目 | 说明 | 文档入口 |
 |--------|------|----------|

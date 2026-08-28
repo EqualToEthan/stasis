@@ -141,17 +141,19 @@ void main() {
       expect(configs.any((c) => c.chainId == 'cardano-preview'), isFalse);
     });
 
-    test('默认测试网: configsForFamily(evm) 返回 3 条测试网配置', () {
+    test('默认测试网: configsForFamily(evm) 返回 4 条测试网配置', () {
       final evmConfigs = ChainRegistry.configsForFamily('evm');
-      expect(evmConfigs.length, 3);
+      expect(evmConfigs.length, 4);
       expect(evmConfigs.any((c) => c.chainId == 'evm-97'), isTrue);
+      expect(evmConfigs.any((c) => c.chainId == 'evm-11155111'), isTrue);
     });
 
-    test('主网模式: configsForFamily(evm) 返回 3 条主网配置', () {
+    test('主网模式: configsForFamily(evm) 返回 4 条主网配置', () {
       AppConfig.isMainnet = true;
       final evmConfigs = ChainRegistry.configsForFamily('evm');
-      expect(evmConfigs.length, 3);
+      expect(evmConfigs.length, 4);
       expect(evmConfigs.any((c) => c.chainId == 'evm-56'), isTrue);
+      expect(evmConfigs.any((c) => c.chainId == 'evm-1'), isTrue);
     });
 
     test('主网模式: mismatchMessage 使用主网链名', () {

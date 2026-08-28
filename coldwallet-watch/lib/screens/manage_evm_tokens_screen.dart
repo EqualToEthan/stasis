@@ -70,10 +70,16 @@ class _ManageEvmTokensScreenState extends State<ManageEvmTokensScreen> {
     });
   }
 
+  /// 无指定链时的默认选中链：与 HomeScreen 默认链一致（BSC，Q13 决策）。
+  /// 注册顺序中 Ethereum 排在 BSC 之前，直接取第一条会偏离默认链约定。
   String? _resolveInitialChain() {
     final requested = widget.initialChainId;
     if (requested != null && _chainOptions.any((c) => c.chainId == requested)) {
       return requested;
+    }
+    final defaultChainId = AppConfig.isMainnet ? 'evm-56' : 'evm-97';
+    if (_chainOptions.any((c) => c.chainId == defaultChainId)) {
+      return defaultChainId;
     }
     return _chainOptions.firstOrNull?.chainId;
   }

@@ -38,6 +38,7 @@ coldwallet-watch 当前已支持添加 EVM 观察钱包并识别链族，但 `Ho
      - BSC（mainnet / Chapel testnet）
      - Arbitrum（mainnet / Sepolia）
      - Base（mainnet / Sepolia）
+   - **修订（ADR-0008）**：Ethereum 主网/Sepolia 已回归，链覆盖扩展为 4 条；BSC 端点换用 PublicNode，并补充 15s 请求超时与单链错误态。
 
 7. **数据模型**
    - 新建 `EvmAssetBalance` 模型，字段包括：

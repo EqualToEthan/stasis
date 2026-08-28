@@ -45,6 +45,12 @@ class _HomeScreenState extends State<HomeScreen> {
   List<WatchWallet> _wallets = [];
   List<AssetBalance> _assets = [];
   Map<String, List<EvmAssetBalance>> _evmAssetsByChain = {};
+
+  /// 每条 EVM 链最近一次查询失败的错误信息，成功后清除。
+  final Map<String, String> _evmChainErrors = {};
+
+  /// 正在查询中的 EVM 链集合，用于在余额区显示加载指示器。
+  final Set<String> _evmLoadingChains = {};
   String? _selectedEvmChainId;
   bool _loading = true;
   String? _error;
@@ -159,17 +165,36 @@ class _HomeScreenState extends State<HomeScreen> {
   ///
   /// 使用 [widget.evmAssetService]（若注入）或新建实例查询。
   /// 查询结果缓存在 [_evmAssetsByChain] 中，切换链时优先使用缓存。
+  /// 单链失败不抛出、不影响其他链，但会记录到 [_evmChainErrors]，
+  /// 由余额区行内显示错误态与重试按钮，与“余额为 0”区分（ADR-0008 缺陷 D2）。
   Future<void> _loadEvmChainBalances(String address, String chainId) async {
     final storage = widget.storageService ?? await StorageService.create();
     final evmService =
         widget.evmAssetService ?? EvmAssetService(EvmRpcService(), storage);
+    setState(() {
+      _evmLoadingChains.add(chainId);
+      _evmChainErrors.remove(chainId);
+    });
     try {
       final assets = await evmService.loadBalances(chainId, address);
       if (!mounted) return;
       setState(() => _evmAssetsByChain[chainId] = assets);
-    } catch (_) {
-      // 单链查询失败不影响其他链
+    } catch (e) {
+      // 单链查询失败不影响其他链，但必须让用户看到并可以重试
+      if (!mounted) return;
+      setState(() => _evmChainErrors[chainId] = e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _evmLoadingChains.remove(chainId));
+      }
     }
+  }
+
+  /// 重试指定 EVM 链的余额查询。
+  void _retryEvmChain(String chainId) {
+    final wallet = _currentWallet;
+    if (wallet == null || !wallet.isEvm) return;
+    _loadEvmChainBalances(wallet.address, chainId);
   }
 
   /// 切换 EVM 链下拉列表。
@@ -282,6 +307,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final evmNativeBalance = currentEvmAssets
         .where((a) => a.isNative)
         .firstOrNull;
+    final isCurrentChainLoading =
+        _selectedEvmChainId != null &&
+        _evmLoadingChains.contains(_selectedEvmChainId);
+    final currentChainError = _selectedEvmChainId != null
+        ? _evmChainErrors[_selectedEvmChainId]
+        : null;
 
     return Column(
       children: [
@@ -302,12 +333,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildMainBalance(adaBalance, 'ADA'),
                   if (wallet.isCardano && adaBalance == null)
                     const SizedBox(height: 32),
-                  if (wallet.isEvm && evmNativeBalance != null)
+                  if (wallet.isEvm && isCurrentChainLoading)
+                    _buildChainLoadingIndicator(),
+                  if (wallet.isEvm &&
+                      !isCurrentChainLoading &&
+                      currentChainError != null)
+                    _buildChainErrorRow(_selectedEvmChainId!),
+                  if (wallet.isEvm &&
+                      !isCurrentChainLoading &&
+                      currentChainError == null &&
+                      evmNativeBalance != null)
                     _buildMainBalance(
                       evmNativeBalance.formattedBalance,
                       evmNativeBalance.symbol,
                     ),
-                  if (wallet.isEvm && evmNativeBalance == null)
+                  if (wallet.isEvm &&
+                      !isCurrentChainLoading &&
+                      currentChainError == null &&
+                      evmNativeBalance == null)
                     const SizedBox(height: 32),
                   const SizedBox(height: 32),
                   _buildActionButtons(wallet),
@@ -454,6 +497,33 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 当前 EVM 链查询中：余额区显示小型加载指示器（ADR-0008）。
+  Widget _buildChainLoadingIndicator() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 16),
+      child: SizedBox(
+        height: 24,
+        width: 24,
+        child: CircularProgressIndicator(strokeWidth: 2.5),
+      ),
+    );
+  }
+
+  /// 当前 EVM 链查询失败：行内错误态 + 重试按钮，与“余额为 0”区分（ADR-0008 缺陷 D2）。
+  Widget _buildChainErrorRow(String chainId) {
+    return Row(
+      children: [
+        Icon(Icons.error_outline, size: 18, color: Colors.red.shade700),
+        const SizedBox(width: 8),
+        const Expanded(child: Text('该链查询失败')),
+        TextButton(
+          onPressed: () => _retryEvmChain(chainId),
+          child: const Text('重试'),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMainBalance(String balance, String symbol) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,6 +619,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (wallet.isEvm) {
+      // 加载中/失败时代币区不显示“暂无 ERC-20”提示，避免误导（ADR-0008）
+      final chainId = _selectedEvmChainId;
+      if (chainId != null && _evmLoadingChains.contains(chainId)) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 24.0),
+          child: Center(
+            child: SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        );
+      }
+      if (chainId != null && _evmChainErrors.containsKey(chainId)) {
+        // 错误态已在余额区行内展示，此处留白
+        return const SizedBox(height: 24);
+      }
       final currentEvm = _selectedEvmChainId != null
           ? _evmAssetsByChain[_selectedEvmChainId] ?? []
           : <EvmAssetBalance>[];

@@ -25,6 +25,13 @@ class ChainRegistry {
       network: 'preview',
     ),
     // EVM
+    'evm-11155111': ChainConfig(
+      chainId: 'evm-11155111',
+      chainFamily: 'evm',
+      name: 'Ethereum Sepolia',
+      network: 'sepolia',
+      evmChainId: 11155111,
+    ),
     'evm-97': ChainConfig(
       chainId: 'evm-97',
       chainFamily: 'evm',
@@ -58,6 +65,13 @@ class ChainRegistry {
       network: 'mainnet',
     ),
     // EVM
+    'evm-1': ChainConfig(
+      chainId: 'evm-1',
+      chainFamily: 'evm',
+      name: 'Ethereum',
+      network: 'mainnet',
+      evmChainId: 1,
+    ),
     'evm-56': ChainConfig(
       chainId: 'evm-56',
       chainFamily: 'evm',

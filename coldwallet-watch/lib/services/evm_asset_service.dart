@@ -71,6 +71,7 @@ class EvmAssetService {
   /// 获取原生代币的符号与小数位。
   static _NativeMeta _nativeTokenMeta(String chainId) {
     return switch (chainId) {
+      'evm-1' || 'evm-11155111' => _NativeMeta('ETH', 18),
       'evm-56' || 'evm-97' => _NativeMeta('BNB', 18),
       'evm-42161' || 'evm-421614' => _NativeMeta('ETH', 18),
       'evm-8453' || 'evm-84532' => _NativeMeta('ETH', 18),

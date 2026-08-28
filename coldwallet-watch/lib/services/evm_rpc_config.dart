@@ -8,15 +8,18 @@ import 'storage_service.dart';
 class EvmRpcConfig {
   /// 默认公共 RPC 端点表，按 [ChainConfig.chainId] 索引。
   ///
-  /// 端点选择原则：免费、无需 API key、社区维护。
+  /// 端点选择原则：免费、无需 API key、CORS 开放、实测稳定可达。
+  /// BSC 官方 dataseed 端点实测间歇挂死，已换用 PublicNode（见 ADR-0008）。
   /// 若某个端点不可用，用户可在设置页自行覆盖。
   static const Map<String, String> defaultRpcUrls = {
     // 主网
-    'evm-56': 'https://bsc-dataseed.binance.org',
+    'evm-1': 'https://ethereum-rpc.publicnode.com',
+    'evm-56': 'https://bsc.publicnode.com',
     'evm-42161': 'https://arb1.arbitrum.io/rpc',
     'evm-8453': 'https://mainnet.base.org',
     // 测试网
-    'evm-97': 'https://data-seed-prebsc-1-s1.binance.org:8545',
+    'evm-11155111': 'https://ethereum-sepolia-rpc.publicnode.com',
+    'evm-97': 'https://bsc-testnet.publicnode.com',
     'evm-421614': 'https://sepolia-rollup.arbitrum.io/rpc',
     'evm-84532': 'https://sepolia.base.org',
   };

@@ -77,6 +77,19 @@ void main() {
       expect(assets.first.isNative, isTrue);
     });
 
+    test('loads native token for Ethereum mainnet', () async {
+      final rpc = _FakeEvmRpcService(
+        balances: {'0xwallet': BigInt.from(2000000000000000000)},
+      );
+      final storage = FakeStorageService();
+      final service = EvmAssetService(rpc, storage);
+      final assets = await service.loadBalances('evm-1', '0xWallet');
+      expect(assets.length, 1);
+      expect(assets.first.symbol, 'ETH');
+      expect(assets.first.formattedBalance, '2');
+      expect(assets.first.isNative, isTrue);
+    });
+
     test('loads native token and ERC-20 tokens', () async {
       final rpc = _FakeEvmRpcService(
         balances: {'0xwallet': BigInt.from(1000000000000000000)},

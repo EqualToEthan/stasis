@@ -8,6 +8,8 @@
 
 EVM 链族中，同一个私钥在所有 EVM 链（BSC、Arbitrum、Base）上派生出**完全相同的地址**——地址由公钥的 Keccak-256 哈希后 20 字节决定，与链无关。
 
+> 修订注记（ADR-0008）：Ethereum 主网/Sepolia 已回归，当前链覆盖为 4 条（Ethereum、BSC、Arbitrum、Base），本决策的“地址即身份”模型不受影响。
+
 这与 Cardano 有本质区别：Cardano 不同网络（preview / mainnet）产生不同的地址。
 
 在初始实现中，`WatchWallet` 模型为每个钱包条目保存 `address` + `chainId`，即"一个地址 + 一条链 = 一个钱包条目"。这意味着同一个 EVM 地址在不同链上需要分别添加 5 次，违反观察钱包"一眼看全貌"的核心价值。

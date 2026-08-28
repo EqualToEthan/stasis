@@ -37,6 +37,23 @@ class _FakeEvmAssetService extends EvmAssetService {
   ) async => _balances;
 }
 
+/// 始终抛异常的 mock 服务，用于测试单链查询失败的错误态。
+class _FailingEvmAssetService extends EvmAssetService {
+  int callCount = 0;
+
+  _FailingEvmAssetService()
+    : super(EvmRpcService(), FakeStorageService(wallets: []));
+
+  @override
+  Future<List<EvmAssetBalance>> loadBalances(
+    String chainId,
+    String address,
+  ) async {
+    callCount++;
+    throw Exception('network down');
+  }
+}
+
 void main() {
   group('HomeScreen action buttons', () {
     testWidgets(
@@ -181,6 +198,68 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('暂无 ERC-20 代币，请到设置页添加'), findsOneWidget);
+    });
+
+    testWidgets('shows per-chain error state with retry when EVM query fails', (
+      tester,
+    ) async {
+      final wallet = WatchWallet.create(
+        name: 'EVM Wallet',
+        address: '0xDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEf',
+        chainFamily: 'evm',
+        chainId: 'evm-56',
+        network: 'mainnet',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            storageService: FakeStorageService(
+              wallets: [wallet],
+              currentWalletId: wallet.id,
+            ),
+            evmAssetService: _FailingEvmAssetService(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      // 错误态可见，与“余额为 0”可区分
+      expect(find.text('该链查询失败'), findsOneWidget);
+      expect(find.text('重试'), findsOneWidget);
+    });
+
+    testWidgets('retry button re-triggers failed chain query', (tester) async {
+      final wallet = WatchWallet.create(
+        name: 'EVM Wallet',
+        address: '0xDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEfDeAdBeEf',
+        chainFamily: 'evm',
+        chainId: 'evm-56',
+        network: 'mainnet',
+      );
+      final service = _FailingEvmAssetService();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            storageService: FakeStorageService(
+              wallets: [wallet],
+              currentWalletId: wallet.id,
+            ),
+            evmAssetService: service,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      final callsAfterFirstLoad = service.callCount;
+      await tester.tap(find.text('重试'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(service.callCount, greaterThan(callsAfterFirstLoad));
     });
   });
 }

@@ -8,8 +8,8 @@
 |------|--------|----------|
 | asset_service.dart | AssetService | Cardano 资产查询，通过 Blockfrost 获取地址余额并结合用户启用配置返回资产列表 |
 | blockfrost_service.dart | BlockfrostService, BlockfrostEndpoint | Blockfrost API 封装，提供 UTxO、余额、区块、协议参数查询和交易提交 |
-| evm_rpc_config.dart | EvmRpcConfig | EVM 默认公共 RPC 端点表（免费、无需 API key 的公共服务），按 ChainConfig.chainId 索引 |
-| evm_rpc_service.dart | EvmRpcService | 极简 EVM JSON-RPC 客户端，封装 eth_getBalance / eth_call 与 ABI 编解码 |
+| evm_rpc_config.dart | EvmRpcConfig | EVM 默认公共 RPC 端点表（免费、无需 API key、实测稳定可达），按 ChainConfig.chainId 索引；BSC 端点已从间歇挂死的 dataseed 换为 PublicNode（ADR-0008） |
+| evm_rpc_service.dart | EvmRpcService | 极简 EVM JSON-RPC 客户端，封装 eth_getBalance / eth_call 与 ABI 编解码；所有请求统一 15s 超时，端点挂死时快速失败（ADR-0008） |
 | evm_asset_service.dart | EvmAssetService | EVM 资产查询，聚合原生代币与已添加 ERC-20 代币余额 |
 | `storage_service.dart | StorageService | 本地存储，SharedPreferences 存钱包列表，SecureStorage 存 API Key（测试网/主网分别存储） |
 | stake_transaction_builder.dart | StakeTransactionBuilder | 质押交易构建，支持委托、提取奖励、解除注册三种操作，迭代计算手续费（含 payment + stake witness 占位），首次注册时 summary deposit 为正数（2 ADA），解除注册时为负数（退回 2 ADA）；DRep 弃权证书随委托交易自动附带（ADR 0004），Conway 时代 ledger 对 withdrawal 的 DRep 检查用证书应用前的账户状态快照，因此提取奖励交易是纯 withdrawal、不能附带任何证书 |
