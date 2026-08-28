@@ -75,6 +75,8 @@ void main() {
       await tester.tap(find.text('添加并校验'));
       await tester.pumpAndSettle();
 
+      // 列表项主标题显示 symbol，副标题显示合约地址。
+      expect(find.text('SYM'), findsOneWidget);
       expect(
         find.text('0xdac17f958d2ee523a2206206994597c13d831ec7'),
         findsOneWidget,
@@ -120,6 +122,7 @@ void main() {
       await tester.tap(find.byType(IconButton));
       await tester.pumpAndSettle();
 
+      expect(find.text('SYM'), findsNothing);
       expect(
         find.text('0xdac17f958d2ee523a2206206994597c13d831ec7'),
         findsNothing,

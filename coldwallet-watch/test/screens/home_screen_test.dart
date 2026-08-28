@@ -168,6 +168,11 @@ void main() {
       expect(find.text('1'), findsWidgets);
       expect(find.text('质押'), findsNothing);
       expect(find.text('治理委托'), findsNothing);
+      // 首页代币列表不应展示合约地址（需求：仅 symbol + 余额）。
+      expect(
+        find.text('0xdac17f958d2ee523a2206206994597c13d831ec7'),
+        findsNothing,
+      );
     });
 
     testWidgets('shows add token hint when EVM wallet has no ERC-20 tokens', (

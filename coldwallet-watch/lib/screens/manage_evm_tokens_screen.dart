@@ -10,6 +10,8 @@ import '../services/storage_service.dart';
 ///
 /// 用户可在此页面为指定 EVM 链添加或删除 ERC-20 代币合约地址。
 /// 添加时会通过 RPC 实时校验合约是否可读（decimals + symbol）。
+/// 已添加代币列表展示 symbol（主标题）与合约地址（副标题），
+/// symbol 读取失败时回退到仅显示地址。
 class ManageEvmTokensScreen extends StatefulWidget {
   /// 可选的 StorageService 注入，主要用于测试。
   final StorageService? storageService;
@@ -43,6 +45,14 @@ class _ManageEvmTokensScreenState extends State<ManageEvmTokensScreen> {
   String? _selectedChainId;
   List<String> _contracts = [];
 
+  /// 已加载的合约地址到代币符号的映射。
+  ///
+  /// 查询失败或尚未完成时，对应 key 不存在，列表项回退到显示地址。
+  final Map<String, String> _symbolByContract = {};
+
+  /// 是否正在批量加载代币符号，用于列表项的加载提示。
+  bool _loadingSymbols = false;
+
   final _addressController = TextEditingController();
   bool _validating = false;
   String? _validationError;
@@ -57,17 +67,14 @@ class _ManageEvmTokensScreenState extends State<ManageEvmTokensScreen> {
     final storage = widget.storageService ?? await StorageService.create();
     final rpc = widget.rpcService ?? EvmRpcService();
     final initialChain = _resolveInitialChain();
-    final contracts = initialChain != null
-        ? await storage.getEvmTokenContracts(initialChain)
-        : <String>[];
     if (!mounted) return;
     setState(() {
       _storage = storage;
       _rpc = rpc;
       _selectedChainId = initialChain;
-      _contracts = contracts;
       _initialized = true;
     });
+    await _loadContracts();
   }
 
   /// 无指定链时的默认选中链：与 HomeScreen 默认链一致（BSC，Q13 决策）。
@@ -89,7 +96,24 @@ class _ManageEvmTokensScreenState extends State<ManageEvmTokensScreen> {
     if (chainId == null) return;
     final contracts = await _storage.getEvmTokenContracts(chainId);
     if (!mounted) return;
-    setState(() => _contracts = contracts);
+    setState(() {
+      _contracts = contracts;
+      _symbolByContract.clear();
+      _loadingSymbols = contracts.isNotEmpty;
+    });
+
+    final rpcUrl = await _resolveRpcUrl(chainId);
+    for (final contract in contracts) {
+      try {
+        final symbol = await _rpc.getTokenSymbol(rpcUrl, contract);
+        _symbolByContract[contract] = symbol;
+      } catch (_) {
+        // 单个合约 symbol 读取失败不影响列表展示，回退到显示地址。
+        _symbolByContract[contract] = contract;
+      }
+    }
+    if (!mounted) return;
+    setState(() => _loadingSymbols = false);
   }
 
   Future<String> _resolveRpcUrl(String chainId) =>
@@ -252,15 +276,32 @@ class _ManageEvmTokensScreenState extends State<ManageEvmTokensScreen> {
       separatorBuilder: (context, index) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final contract = _contracts[index];
+        final symbol = _symbolByContract[contract];
+        final displayTitle = symbol ?? contract;
+        final showSubtitle = symbol != null && symbol != contract;
         return ListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text(
-            contract,
-            style: const TextStyle(fontSize: 14, fontFamily: 'monospace'),
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => _removeToken(contract),
+          title: Text(displayTitle, style: const TextStyle(fontSize: 14)),
+          subtitle: showSubtitle
+              ? Text(
+                  contract,
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                )
+              : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_loadingSymbols && symbol == null)
+                const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _removeToken(contract),
+              ),
+            ],
           ),
         );
       },

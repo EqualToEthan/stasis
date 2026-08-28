@@ -657,11 +657,6 @@ class _HomeScreenState extends State<HomeScreen> {
           return ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(asset.symbol),
-            subtitle: Text(
-              asset.contractAddress ?? '',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
             trailing: Text(asset.formattedBalance),
           );
         },
